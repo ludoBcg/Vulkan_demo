@@ -20,7 +20,10 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES // handles data alignment automatically
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE // define a depth range of [0;1] instead of [-1;1] for the perspective projection matrix
 #include <glm/glm.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 //#include <vulkan/vulkan.h>  // included by GLFW/glfw3.h below
 
@@ -31,20 +34,30 @@
 #include <GLFW/glfw3native.h> // gives access to native platform functions
 
 
+
 namespace VulkanDemo
 {
 
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
+    const std::string MODEL_PATH = "../src/viking_room.obj";
+    const std::string TEXTURE_PATH = "../src/viking_room.png";
+
     /*
      * Structure for vertex attributes
      */
     struct Vertex 
     {
-        glm::vec2 pos;
+        glm::vec3 pos;
         glm::vec3 color;
         glm::vec2 texCoord;
+
+
+        bool operator==(const Vertex& _other) const 
+        {
+            return pos == _other.pos && color == _other.color && texCoord == _other.texCoord;
+        }
 
         static VkVertexInputBindingDescription getBindingDescription() 
         {
@@ -65,7 +78,7 @@ namespace VulkanDemo
             // Attribute description for position
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
-            attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+            attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
             attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
             // Attribute description for color
@@ -95,6 +108,7 @@ namespace VulkanDemo
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 proj;
     };
+
 
 
     // List of validation layers to enable
@@ -279,3 +293,14 @@ namespace VulkanDemo
 
 
 } // namespace VulkanDemo
+
+
+namespace std {
+    template<> struct hash<VulkanDemo::Vertex> {
+        size_t operator()(VulkanDemo::Vertex const& vertex) const {
+            return ((hash<glm::vec3>()(vertex.pos) ^
+                (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+                (hash<glm::vec2>()(vertex.texCoord) << 1);
+        }
+    };
+}

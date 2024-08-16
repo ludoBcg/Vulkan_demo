@@ -52,12 +52,24 @@ private:
     VkPipeline m_graphicsPipeline;                      // final graphics pipeline
     std::vector<VkFramebuffer> m_swapChainFramebuffers; // framebuffers
     VkCommandPool m_commandPool;                        // command pool
+    VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT; // nb of samples per pixel
 
     // texture
+    uint32_t m_mipLevels;
     VkImage m_textureImage;
     VkDeviceMemory m_textureImageMemory;
     VkImageView m_textureImageView;
     VkSampler m_textureSampler;
+
+    // depth buffer
+    VkImage m_depthImage;
+    VkDeviceMemory m_depthImageMemory;
+    VkImageView m_depthImageView;
+
+    // image to store the desired number of samples per pixel
+    VkImage m_colorImage;
+    VkDeviceMemory m_colorImageMemory;
+    VkImageView m_colorImageView;
 
     // Command buffer (for each in-flight frame)
     std::vector<VkCommandBuffer> m_commandBuffers;
@@ -95,18 +107,26 @@ private:
     // | \  |
     // |  \ |
     // 1 -- 0 
-    const std::vector<Vertex> m_vertices = {
-        // RGB triangle 
-        { { 0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} }, // R
-        { {-0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }, // G
-        { {-0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} }, // B
-        { { 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f} }  // W
+    const std::vector<Vertex> m_vertices_quads = {
+        { { 0.5f,  0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} }, // R
+        { {-0.5f,  0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }, // G
+        { {-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} }, // B
+        { { 0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f} },  // W
+
+        { { 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} }, // R
+        { {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }, // G
+        { {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} }, // B
+        { { 0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f} }  // W
     };
 
     // list of indices
-    const std::vector<uint16_t>  m_indices = {
-        0, 1, 2, 2, 3, 0
+    const std::vector<uint16_t>  m_indices_quads = {
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4
     };
+
+    std::vector<Vertex> m_vertices;
+    std::vector<uint32_t> m_indices;
 
     // Vertex buffer
     VkBuffer m_vertexBuffer;
@@ -146,9 +166,11 @@ private:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
+    void createDepthResources();
     void createTextureImage();
     void createTextureImageView();
     void createTextureSampler();
+    void createColorResources();
     void createVertexBuffer();
     void createIndexBuffer();
     void createUniformBuffers();
@@ -169,17 +191,23 @@ private:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& _capabilities);
 
     // used in createImageViews()
-    VkImageView createImageView(VkImage _image, VkFormat _format);
+    VkImageView createImageView(VkImage _image, VkFormat _format, VkImageAspectFlags _aspectFlags, uint32_t _mipLevels);
 
     // used in createGraphicsPipeline()
     VkShaderModule createShaderModule(const std::vector<char>& _code);
 
+    // used in createDepthResources()
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& _candidates, VkImageTiling _tiling, VkFormatFeatureFlags _features);
+    VkFormat findDepthFormat();
+    bool hasStencilComponent(VkFormat _format);
+
     // used in createTextureImage()
-    void createImage(uint32_t _width, uint32_t _height, VkFormat _format,
+    void createImage(uint32_t _width, uint32_t _height, uint32_t _mipLevels, VkSampleCountFlagBits _numSamples, VkFormat _format,
                      VkImageTiling _tiling, VkImageUsageFlags _usage, VkMemoryPropertyFlags _properties,
                      VkImage& _image, VkDeviceMemory& _imageMemory);
-    void transitionImageLayout(VkImage _image, VkFormat _format, VkImageLayout _oldLayout, VkImageLayout _newLayout);
+    void transitionImageLayout(VkImage _image, VkFormat _format, VkImageLayout _oldLayout, VkImageLayout _newLayout, uint32_t _mipLevels);
     void copyBufferToImage(VkBuffer _buffer, VkImage _image, uint32_t _width, uint32_t _height);
+    void generateMipmaps(VkImage _image, VkFormat _imageFormat, int32_t _texWidth, int32_t _texHeight, uint32_t _mipLevels);
 
     // used in createVertexBuffer()
     uint32_t findMemoryType(uint32_t _typeFilter, VkMemoryPropertyFlags _properties);
@@ -203,6 +231,8 @@ private:
     void copyBuffer(VkBuffer _srcBuffer, VkBuffer _dstBuffer, VkDeviceSize _size);
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer _commandBuffer);
+
+    VkSampleCountFlagBits getMaxUsableSampleCount();
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& _createInfo);
 
