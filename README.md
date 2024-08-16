@@ -25,6 +25,10 @@ Create an *external* directory and copy into it the following libraries:
 * [stb library](https://github.com/nothings/stb) for image loading:
 
   Just download and include the stb_image.h header
+  
+* [tinyobjloader](https://github.com/syoyo/tinyobjloader)
+
+  Just download and include the tiny_obj_loader.h header
 
 
 You can then use the CMakeList provided to generate a project.
@@ -42,3 +46,8 @@ pause
 ## Other resources
 
 https://renderdoc.org/vulkan-in-30-minutes.html
+
+
+Data:
+
+[Viking room model](https://sketchfab.com/3d-models/viking-room-a49f1b8e4f5c4ecf9e1fe7d81915ad38) by [nigelgoh](https://sketchfab.com/nigelgoh)
