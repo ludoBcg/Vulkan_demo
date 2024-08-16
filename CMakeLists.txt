@@ -43,6 +43,10 @@ include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/external/glm")
 include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/external/stb")
 
 
+# tinyobjloader
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader")
+
+
 ################################# BUILD PROJECT ######################
 
 # Add executable for project
