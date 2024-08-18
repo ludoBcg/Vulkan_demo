@@ -18,10 +18,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-#include "utils.h"
+#include "mesh.h"
 
 namespace VulkanDemo
 {
+
 
 class HelloTriangleApp
 {
@@ -85,58 +86,8 @@ private:
     // id of current frame to draw
     uint32_t m_currentFrame = 0;
 
-    //// list of vertices
-    //// 2  3 - 4
-    //// | \ \  |
-    //// |  \ \ |
-    //// 1 - 0  5
-    //const std::vector<Vertex> m_vertices = {
-    //    // RGB triangle 
-    //    { { 0.5f,  0.5f}, {1.0f, 0.0f, 0.0f} },
-    //    { {-0.5f,  0.5f}, {0.0f, 1.0f, 0.0f} },
-    //    { {-0.5f, -0.5f}, {0.0f, 0.0f, 1.0f} },
-
-    //    // YCM triangle
-    //    { {-0.5f, -0.5f}, {1.0f, 1.0f, 0.0f} },
-    //    { { 0.5f, -0.5f}, {0.0f, 1.0f, 1.0f} },
-    //    { { 0.5f,  0.5f}, {1.0f, 0.0f, 1.0f} }
-    //};
-
-    // list of vertices
-    // 2 -- 3
-    // | \  |
-    // |  \ |
-    // 1 -- 0 
-    const std::vector<Vertex> m_vertices_quads = {
-        { { 0.5f,  0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} }, // R
-        { {-0.5f,  0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }, // G
-        { {-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} }, // B
-        { { 0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f} },  // W
-
-        { { 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f} }, // R
-        { {-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} }, // G
-        { {-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} }, // B
-        { { 0.5f, -0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f} }  // W
-    };
-
-    // list of indices
-    const std::vector<uint16_t>  m_indices_quads = {
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4
-    };
-
-    std::vector<Vertex> m_vertices;
-    std::vector<uint32_t> m_indices;
-
-    // Vertex buffer
-    VkBuffer m_vertexBuffer;
-    // Handle to the vertex buffer memory
-    VkDeviceMemory m_vertexBufferMemory;
-
-    // Index buffer
-    VkBuffer m_indexBuffer;
-    // Handle to the index buffer memory
-    VkDeviceMemory m_indexBufferMemory;
+    // Mesh contains vertex buffer and index buffer
+    Mesh m_mesh;
 
     // uniforms storage
     std::vector<VkBuffer> m_uniformBuffers;
@@ -171,8 +122,6 @@ private:
     void createTextureImageView();
     void createTextureSampler();
     void createColorResources();
-    void createVertexBuffer();
-    void createIndexBuffer();
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
@@ -209,8 +158,6 @@ private:
     void copyBufferToImage(VkBuffer _buffer, VkImage _image, uint32_t _width, uint32_t _height);
     void generateMipmaps(VkImage _image, VkFormat _imageFormat, int32_t _texWidth, int32_t _texHeight, uint32_t _mipLevels);
 
-    // used in createVertexBuffer()
-    uint32_t findMemoryType(uint32_t _typeFilter, VkMemoryPropertyFlags _properties);
 
     // main step of mainLoop()
     void drawFrame();
@@ -223,14 +170,6 @@ private:
 
     // UI callbacks
     static void framebufferResizeCallback(GLFWwindow* _window, int _width, int _height);
-
-    // buffer creation
-    void createBuffer(VkDeviceSize _size, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _properties,
-        VkBuffer& _buffer, VkDeviceMemory& _bufferMemory);
-    // buffer copy
-    void copyBuffer(VkBuffer _srcBuffer, VkBuffer _dstBuffer, VkDeviceSize _size);
-    VkCommandBuffer beginSingleTimeCommands();
-    void endSingleTimeCommands(VkCommandBuffer _commandBuffer);
 
     VkSampleCountFlagBits getMaxUsableSampleCount();
 

@@ -228,7 +228,7 @@ namespace VulkanDemo
     }
 
 
-    inline  void DestroyDebugUtilsMessengerEXT(VkInstance instance,
+    inline void DestroyDebugUtilsMessengerEXT(VkInstance instance,
         VkDebugUtilsMessengerEXT debugMessenger,
         const VkAllocationCallbacks* pAllocator)
     {
@@ -270,7 +270,7 @@ namespace VulkanDemo
     /*
      * Read shader files
      */
-    static std::vector<char> readFile(const std::string& filename) 
+    inline static std::vector<char> readFile(const std::string& filename)
     {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -288,6 +288,123 @@ namespace VulkanDemo
         file.close();
 
         return buffer;
+    }
+
+
+    /*
+     * Defines the right type of memory to use
+     */
+    inline uint32_t findMemoryType(VkPhysicalDevice& _physicalDevice, uint32_t _typeFilter, VkMemoryPropertyFlags _properties)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+        {
+            if ((_typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & _properties) == _properties)
+            {
+                return i;
+            }
+        }
+
+        throw std::runtime_error("failed to find suitable memory type!");
+    }
+
+
+    /*
+    * Helper function for command buffer allocation
+    */
+    inline VkCommandBuffer beginSingleTimeCommands(VkDevice& _device, VkCommandPool& _commandPool)
+    {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = _commandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(_device, &allocInfo, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        return commandBuffer;
+    }
+
+
+    /*
+    * Helper function for command buffer allocation
+    */
+    inline void endSingleTimeCommands(VkDevice& _device, VkCommandBuffer _commandBuffer, VkCommandPool& _commandPool, VkQueue& _graphicsQueue)
+    {
+        vkEndCommandBuffer(_commandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &_commandBuffer;
+
+        vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(_graphicsQueue);
+
+        vkFreeCommandBuffers(_device, _commandPool, 1, &_commandBuffer);
+    }
+
+
+
+    /*
+    * Helper function for buffer creation
+    */
+    inline void createBuffer(VkPhysicalDevice& _physicalDevice, VkDevice& _device, VkDeviceSize _size, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _properties,
+                      VkBuffer& _buffer, VkDeviceMemory& _bufferMemory)
+    {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = _size;
+        bufferInfo.usage = _usage;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(_device, &bufferInfo, nullptr, &_buffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create buffer!");
+        }
+
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(_device, _buffer, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = findMemoryType(_physicalDevice, memRequirements.memoryTypeBits, _properties);
+
+        if (vkAllocateMemory(_device, &allocInfo, nullptr, &_bufferMemory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate buffer memory!");
+        }
+
+        vkBindBufferMemory(_device, _buffer, _bufferMemory, 0);
+    }
+
+    /*
+     * Helper function for buffer copy
+     */
+    inline void copyBuffer(VkDevice& _device, VkCommandPool& _commandPool, VkQueue& _graphicsQueue, VkBuffer _srcBuffer, VkBuffer _dstBuffer, VkDeviceSize _size)
+    {
+        // Memory transfer operations are executed using command buffers
+
+        // First allocate a temporary command buffer
+        VkCommandBuffer commandBuffer = beginSingleTimeCommands(_device, _commandPool);
+
+        // Copy operation
+        VkBufferCopy copyRegion{};
+        copyRegion.srcOffset = 0; // Optional
+        copyRegion.dstOffset = 0; // Optional
+        copyRegion.size = _size;
+        vkCmdCopyBuffer(commandBuffer, _srcBuffer, _dstBuffer, 1, &copyRegion);
+
+        // Ends the command buffer
+        endSingleTimeCommands(_device, commandBuffer, _commandPool, _graphicsQueue);
     }
 
 
