@@ -2,7 +2,8 @@
  *
  * mesh.h
  *
- * The Vulkan application
+ * Mesh class to store geometry and handle vertex and index buffers
+ * Can create a mesh from a Wavefront (.obj) file using tinyobjloader lib, or build a default geometry (quads)
  *
  * Based on: https://vulkan-tutorial.com/
  *
@@ -39,30 +40,42 @@ public:
     {
         m_vertices = _other.m_vertices;
         m_indices = _other.m_indices;
+        m_vertexBuffer = _other.m_vertexBuffer;
+        m_vertexBufferMemory = _other.m_vertexBufferMemory;
+        m_indexBuffer = _other.m_indexBuffer;
+        m_indexBufferMemory = _other.m_indexBufferMemory;
         return *this;
     }
 
     Mesh(Mesh&& _other)
         : m_vertices(std::move(_other.m_vertices))
         , m_indices(std::move(_other.m_indices))
+        , m_vertexBuffer(_other.m_vertexBuffer)
+        , m_vertexBufferMemory(_other.m_vertexBufferMemory)
+        , m_indexBuffer(_other.m_indexBuffer)
+        , m_indexBufferMemory(_other.m_indexBufferMemory)
     {}
 
     Mesh& Mesh::operator=(Mesh&& _other)
     {
         m_vertices = std::move(_other.m_vertices);
         m_indices = std::move(_other.m_indices);
+        m_vertexBuffer = _other.m_vertexBuffer;
+        m_vertexBufferMemory = _other.m_vertexBufferMemory;
+        m_indexBuffer = _other.m_indexBuffer;
+        m_indexBufferMemory = _other.m_indexBufferMemory;
         return *this;
     }
 
     virtual ~Mesh() {};
 
 
-    std::vector<Vertex> const& Mesh::getVertices() const { return m_vertices; }
-    std::vector<uint32_t> const& Mesh::getIndices() const { return m_indices; }
-    VkBuffer const& Mesh::getVertexBuffer() const { return m_vertexBuffer; }
-    VkDeviceMemory const& Mesh::getVertexBufferMemory() const { return m_vertexBufferMemory; }
-    VkBuffer const& Mesh::getIndexBuffer() const { return m_indexBuffer; }
-    VkDeviceMemory const& Mesh::getIndexBufferMemory() const { return m_indexBufferMemory; }
+    std::vector<Vertex> const& getVertices() const { return m_vertices; }
+    std::vector<uint32_t> const& getIndices() const { return m_indices; }
+    VkBuffer const& getVertexBuffer() const { return m_vertexBuffer; }
+    VkDeviceMemory const& getVertexBufferMemory() const { return m_vertexBufferMemory; }
+    VkBuffer const& getIndexBuffer() const { return m_indexBuffer; }
+    VkDeviceMemory const& getIndexBufferMemory() const { return m_indexBufferMemory; }
 
 
     void cleanup(VkDevice& _device);
