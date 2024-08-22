@@ -10,12 +10,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(SRCS
 	src/main.cpp
 	src/mesh.cpp
+	src/image.cpp
 	src/hellotriangleapp.cpp
     )
     
 set(HEADERS
 	src/utils.h
 	src/mesh.h
+	src/image.h
 	src/hellotriangleapp.h
     )
 

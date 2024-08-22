@@ -19,6 +19,7 @@
 
 
 #include "mesh.h"
+#include "image.h"
 
 namespace VulkanDemo
 {
@@ -57,20 +58,13 @@ private:
 
     // texture
     uint32_t m_mipLevels;
-    VkImage m_textureImage;
-    VkDeviceMemory m_textureImageMemory;
-    VkImageView m_textureImageView;
-    VkSampler m_textureSampler;
+    Image m_textureImage;
 
     // depth buffer
-    VkImage m_depthImage;
-    VkDeviceMemory m_depthImageMemory;
-    VkImageView m_depthImageView;
+    Image m_depthImage;
 
     // image to store the desired number of samples per pixel
-    VkImage m_colorImage;
-    VkDeviceMemory m_colorImageMemory;
-    VkImageView m_colorImageView;
+    Image m_colorImage;
 
     // Command buffer (for each in-flight frame)
     std::vector<VkCommandBuffer> m_commandBuffers;
@@ -120,7 +114,7 @@ private:
     void createDepthResources();
     void createTextureImage();
     void createTextureImageView();
-    void createTextureSampler();
+    //void createTextureSampler();
     void createColorResources();
     void createUniformBuffers();
     void createDescriptorPool();
