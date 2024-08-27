@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 # add files
 set(SRCS
 	src/main.cpp
+	src/device.cpp
 	src/mesh.cpp
 	src/image.cpp
 	src/hellotriangleapp.cpp
@@ -16,6 +17,7 @@ set(SRCS
     
 set(HEADERS
 	src/utils.h
+	src/device.h
 	src/mesh.h
 	src/image.h
 	src/hellotriangleapp.h
