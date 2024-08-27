@@ -22,6 +22,7 @@
 namespace VulkanDemo
 {
 
+class Device;
 
 class Image
 {
@@ -38,7 +39,7 @@ public:
         m_image = _other.m_image;
         m_imageMemory = _other.m_imageMemory;
         m_imageView = _other.m_imageView;
-        //m_mipLevels = _other.m_mipLevels;
+        m_mipLevels = _other.m_mipLevels;
         m_sampler = _other.m_sampler;
         return *this;
     }
@@ -47,7 +48,7 @@ public:
         : m_image(_other.m_image)
         , m_imageMemory(_other.m_imageMemory)
         , m_imageView(_other.m_imageView)
-        //, m_mipLevels(_other.m_mipLevels)
+        , m_mipLevels(_other.m_mipLevels)
         , m_sampler(_other.m_sampler)
     {}
 
@@ -56,7 +57,7 @@ public:
         m_image = _other.m_image;
         m_imageMemory = _other.m_imageMemory;
         m_imageView = _other.m_imageView;
-        //m_mipLevels = _other.m_mipLevels;
+        m_mipLevels = _other.m_mipLevels;
         m_sampler = _other.m_sampler;
         return *this;
     }
@@ -64,32 +65,39 @@ public:
     virtual ~Image() {};
 
 
-    VkImage const& getImage() const { return m_image; }
-    VkDeviceMemory const& getImageMemory() const { return m_imageMemory; }
-    VkImageView /*const&*/ getImageView() /*const*/ { return m_imageView; }
-    //uint32_t const& getMiplevels() const { return m_mipLevels; }
-    VkSampler const& getSampler() const { return m_sampler; }
-    //VkSampler& getSampler() { return m_sampler; }
-    //VkSampler* getSamplerPtr() { return &m_sampler; }
+    VkImage const getImage() const { return m_image; }
+    VkDeviceMemory const getImageMemory() const { return m_imageMemory; }
+    VkImageView getImageView() { return m_imageView; }
+    uint32_t const getMiplevels() const { return m_mipLevels; }
+    VkSampler const getSampler() const { return m_sampler; }
 
+    void cleanup(Device& _device);
 
-    void cleanup(VkDevice& _device);
+    void createImageView(Device& _device, VkFormat _format, VkImageAspectFlags _aspectFlags);
 
-    void createImage(VkPhysicalDevice& _physicalDevice, VkDevice& _device,
-                     uint32_t _width, uint32_t _height, uint32_t _mipLevels,
+    void createTextureSampler(Device& _device);
+    void createTextureImage(Device& _device);
+    void createTextureImageView(Device& _device);
+
+    // called in createTextureImage()
+    void createImage(Device& _device,
+                     uint32_t _width, uint32_t _height,
                      VkSampleCountFlagBits _numSamples, VkFormat _format,
                      VkImageTiling _tiling, VkImageUsageFlags _usage, VkMemoryPropertyFlags _properties);
+    void transitionImageLayout(Device& _device,
+                               VkFormat _format, VkImageLayout _oldLayout, VkImageLayout _newLayout);
+    void copyBufferToImage(Device& _device,
+                           VkBuffer _buffer, uint32_t _width, uint32_t _height);
+    void generateMipmaps(Device& _device,
+                         VkFormat _imageFormat, int32_t _texWidth, int32_t _texHeight);
 
-    void createImageView(VkDevice& _device, VkFormat _format, VkImageAspectFlags _aspectFlags, uint32_t _mipLevels);
-
-    void createTextureSampler(VkPhysicalDevice& _physicalDevice, VkDevice& _device, uint32_t _mipLevels);
 
 protected:
 
     VkImage m_image;
     VkDeviceMemory m_imageMemory;
     VkImageView m_imageView;
-    //uint32_t m_mipLevels;
+    uint32_t m_mipLevels = 1; // modified in createTextureImage() to match texture, stays 1 otherwise
     VkSampler m_sampler = nullptr;
 
 }; // class Image

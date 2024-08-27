@@ -296,7 +296,7 @@ namespace VulkanDemo
     /*
      * Defines the right type of memory to use
      */
-    inline uint32_t findMemoryType(VkPhysicalDevice& _physicalDevice, uint32_t _typeFilter, VkMemoryPropertyFlags _properties)
+    inline uint32_t findMemoryType(VkPhysicalDevice _physicalDevice, uint32_t _typeFilter, VkMemoryPropertyFlags _properties)
     {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memProperties);
@@ -316,7 +316,7 @@ namespace VulkanDemo
     /*
     * Helper function for command buffer allocation
     */
-    inline VkCommandBuffer beginSingleTimeCommands(VkDevice& _device, VkCommandPool& _commandPool)
+    inline VkCommandBuffer beginSingleTimeCommands(VkDevice _device, VkCommandPool _commandPool)
     {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -340,7 +340,7 @@ namespace VulkanDemo
     /*
     * Helper function for command buffer allocation
     */
-    inline void endSingleTimeCommands(VkDevice& _device, VkCommandBuffer _commandBuffer, VkCommandPool& _commandPool, VkQueue& _graphicsQueue)
+    inline void endSingleTimeCommands(VkDevice _device, VkCommandBuffer _commandBuffer, VkCommandPool _commandPool, VkQueue _graphicsQueue)
     {
         vkEndCommandBuffer(_commandBuffer);
 
@@ -360,8 +360,8 @@ namespace VulkanDemo
     /*
     * Helper function for buffer creation
     */
-    inline void createBuffer(VkPhysicalDevice& _physicalDevice, VkDevice& _device, VkDeviceSize _size, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _properties,
-                      VkBuffer& _buffer, VkDeviceMemory& _bufferMemory)
+    inline void createBuffer(VkPhysicalDevice _physicalDevice, VkDevice _device, VkDeviceSize _size, VkBufferUsageFlags _usage, VkMemoryPropertyFlags _properties,
+                             VkBuffer& _buffer, VkDeviceMemory& _bufferMemory)
     {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -391,7 +391,7 @@ namespace VulkanDemo
     /*
      * Helper function for buffer copy
      */
-    inline void copyBuffer(VkDevice& _device, VkCommandPool& _commandPool, VkQueue& _graphicsQueue, VkBuffer _srcBuffer, VkBuffer _dstBuffer, VkDeviceSize _size)
+    inline void copyBuffer(VkDevice _device, VkCommandPool _commandPool, VkQueue _graphicsQueue, VkBuffer _srcBuffer, VkBuffer _dstBuffer, VkDeviceSize _size)
     {
         // Memory transfer operations are executed using command buffers
 
@@ -407,6 +407,15 @@ namespace VulkanDemo
 
         // Ends the command buffer
         endSingleTimeCommands(_device, commandBuffer, _commandPool, _graphicsQueue);
+    }
+
+
+    /*
+     * Helper function to know if chosen depth format contains a stencil component
+     */
+    inline bool hasStencilComponent(VkFormat _format)
+    {
+        return _format == VK_FORMAT_D32_SFLOAT_S8_UINT || _format == VK_FORMAT_D24_UNORM_S8_UINT;
     }
 
 

@@ -26,6 +26,8 @@
 namespace VulkanDemo
 {
 
+class Device;
+
 class Mesh
 {
     
@@ -72,20 +74,19 @@ public:
 
     std::vector<Vertex> const& getVertices() const { return m_vertices; }
     std::vector<uint32_t> const& getIndices() const { return m_indices; }
-    VkBuffer const& getVertexBuffer() const { return m_vertexBuffer; }
+    VkBuffer const getVertexBuffer() const { return m_vertexBuffer; }
     VkDeviceMemory const& getVertexBufferMemory() const { return m_vertexBufferMemory; }
-    VkBuffer const& getIndexBuffer() const { return m_indexBuffer; }
-    VkDeviceMemory const& getIndexBufferMemory() const { return m_indexBufferMemory; }
+    VkBuffer const getIndexBuffer() const { return m_indexBuffer; }
+    VkDeviceMemory const getIndexBufferMemory() const { return m_indexBufferMemory; }
 
 
-    void cleanup(VkDevice& _device);
+    void cleanup(Device& _device);
 
     void createQuads();
     void loadModel();
 
-    void createVertexBuffer(VkPhysicalDevice& _physicalDevice, VkDevice& _device, VkCommandPool& _commandPool, VkQueue& _graphicsQueue);
-    void createIndexBuffer(VkPhysicalDevice& _physicalDevice, VkDevice& _device, VkCommandPool& _commandPool, VkQueue& _graphicsQueue);
-
+    void createVertexBuffer(Device& _device);
+    void createIndexBuffer(Device& _device);
 
 protected:
 

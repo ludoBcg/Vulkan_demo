@@ -18,6 +18,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
+#include "device.h"
 #include "mesh.h"
 #include "image.h"
 
@@ -35,14 +36,18 @@ public:
 
 private:
 
+    // Device contains handles for: 
+    //  - logical device, 
+    //  - physical device,
+    //  - command pool,
+    //  - graphics queue,
+    //  - presentation queue
+    std::shared_ptr<Device> m_devicePtr = nullptr; 
+
     GLFWwindow* m_window;
     VkInstance m_instance;                          
     VkDebugUtilsMessengerEXT m_debugMessenger;          // debug callback
-    VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE; // the graphic device
-    VkDevice m_device;                                  // logical device handle (i.e., similar to OpenGL context)
-    VkQueue m_graphicsQueue;                            // graphics queue handle
     VkSurfaceKHR m_surface;                             // abstract type of surface to present rendered images to
-    VkQueue m_presentQueue;                             // presentation queue handle
     VkSwapchainKHR m_swapChain;                         // swap chain
     std::vector<VkImage> m_swapChainImages;             // handles of the VkImage
     VkFormat m_swapChainImageFormat;                    // format chosen for the swap chain images
@@ -53,18 +58,12 @@ private:
     VkPipelineLayout m_pipelineLayout;                  // defines uniforms
     VkPipeline m_graphicsPipeline;                      // final graphics pipeline
     std::vector<VkFramebuffer> m_swapChainFramebuffers; // framebuffers
-    VkCommandPool m_commandPool;                        // command pool
     VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT; // nb of samples per pixel
 
-    // texture
-    uint32_t m_mipLevels;
-    Image m_textureImage;
-
-    // depth buffer
-    Image m_depthImage;
-
-    // image to store the desired number of samples per pixel
-    Image m_colorImage;
+    // images
+    Image m_textureImage;   // texture
+    Image m_depthImage;     // depth buffer
+    Image m_colorImage;     // image to store the desired number of samples per pixel
 
     // Command buffer (for each in-flight frame)
     std::vector<VkCommandBuffer> m_commandBuffers;
@@ -112,9 +111,6 @@ private:
     void createFramebuffers();
     void createCommandPool();
     void createDepthResources();
-    void createTextureImage();
-    void createTextureImageView();
-    //void createTextureSampler();
     void createColorResources();
     void createUniformBuffers();
     void createDescriptorPool();
@@ -142,16 +138,6 @@ private:
     // used in createDepthResources()
     VkFormat findSupportedFormat(const std::vector<VkFormat>& _candidates, VkImageTiling _tiling, VkFormatFeatureFlags _features);
     VkFormat findDepthFormat();
-    bool hasStencilComponent(VkFormat _format);
-
-    // used in createTextureImage()
-    void createImage(uint32_t _width, uint32_t _height, uint32_t _mipLevels, VkSampleCountFlagBits _numSamples, VkFormat _format,
-                     VkImageTiling _tiling, VkImageUsageFlags _usage, VkMemoryPropertyFlags _properties,
-                     VkImage& _image, VkDeviceMemory& _imageMemory);
-    void transitionImageLayout(VkImage _image, VkFormat _format, VkImageLayout _oldLayout, VkImageLayout _newLayout, uint32_t _mipLevels);
-    void copyBufferToImage(VkBuffer _buffer, VkImage _image, uint32_t _width, uint32_t _height);
-    void generateMipmaps(VkImage _image, VkFormat _imageFormat, int32_t _texWidth, int32_t _texHeight, uint32_t _mipLevels);
-
 
     // main step of mainLoop()
     void drawFrame();

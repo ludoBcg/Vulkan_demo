@@ -14,6 +14,7 @@
 #include <tiny_obj_loader.h>
 
 #include "mesh.h"
+#include "device.h"
 
 
 namespace VulkanDemo
@@ -23,13 +24,13 @@ namespace VulkanDemo
 /*
  * Destroyes buffers and frees memory 
  */
-void Mesh::cleanup(VkDevice& _device)
+void Mesh::cleanup(Device& _device)
 {
-    vkDestroyBuffer(_device, m_indexBuffer, nullptr);
-    vkFreeMemory(_device,m_indexBufferMemory, nullptr);
+    vkDestroyBuffer(_device.getDevice(), m_indexBuffer, nullptr);
+    vkFreeMemory(_device.getDevice(),m_indexBufferMemory, nullptr);
 
-    vkDestroyBuffer(_device,m_vertexBuffer, nullptr);
-    vkFreeMemory(_device, m_vertexBufferMemory, nullptr);
+    vkDestroyBuffer(_device.getDevice(),m_vertexBuffer, nullptr);
+    vkFreeMemory(_device.getDevice(), m_vertexBufferMemory, nullptr);
 }
 
 /*
@@ -117,64 +118,63 @@ void Mesh::loadModel()
 /*
  * Creation of vertex buffer
  */
-void Mesh::createVertexBuffer(VkPhysicalDevice& _physicalDevice, VkDevice& _device, VkCommandPool& _commandPool, VkQueue& _graphicsQueue)
+void Mesh::createVertexBuffer(Device& _device)
 {
     VkDeviceSize bufferSize = sizeof(m_vertices[0]) * m_vertices.size();
 
     // Init temporary CPU buffer (stagingBuffer) with associated memory storage (stagingBufferMemory)
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    createBuffer(_physicalDevice, _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    createBuffer( _device.getPhysicalDevice(), _device.getDevice(), bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                  stagingBuffer, stagingBufferMemory);
 
     // map memory buffer (data) with stagingBufferMemory
     void* data;
-    vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(_device.getDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
     // fill-in data  with m_vertices content
     memcpy(data, m_vertices.data(), (size_t)bufferSize);
     // unmap, now that stagingBufferMemory contains m_vertices data
-    vkUnmapMemory(_device, stagingBufferMemory);
+    vkUnmapMemory(_device.getDevice(), stagingBufferMemory);
 
     // Init actual vertex buffer (m_vertexBuffer) with associated memory storage (m_vertexBufferMemory)
-    createBuffer(_physicalDevice, _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    createBuffer( _device.getPhysicalDevice(), _device.getDevice(), bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  m_vertexBuffer, m_vertexBufferMemory);
     // data is copied from stagingBuffer to m_vertexBuffer
-    copyBuffer(_device, _commandPool, _graphicsQueue, stagingBuffer, m_vertexBuffer, bufferSize);
+    copyBuffer(_device.getDevice(), _device.getCommandPool(), _device.getGraphicsQueue(), stagingBuffer, m_vertexBuffer, bufferSize);
 
     // cleanup temporary data after copy
-    vkDestroyBuffer(_device, stagingBuffer, nullptr);
-    vkFreeMemory(_device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(_device.getDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(_device.getDevice(), stagingBufferMemory, nullptr);
 }
 
 
 /*
  * Creation of index buffer
  */
-void Mesh::createIndexBuffer(VkPhysicalDevice& _physicalDevice, VkDevice& _device, VkCommandPool& _commandPool, VkQueue& _graphicsQueue)
+void Mesh::createIndexBuffer(Device& _device)
 {
     VkDeviceSize bufferSize = sizeof(m_indices[0]) * m_indices.size();
 
     // temporary CPU buffer
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    createBuffer(_physicalDevice, _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    createBuffer( _device.getPhysicalDevice(), _device.getDevice(), bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                  stagingBuffer, stagingBufferMemory);
 
     void* data;
-    vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(_device.getDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, m_indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(_device, stagingBufferMemory);
+    vkUnmapMemory(_device.getDevice(), stagingBufferMemory);
 
     // actual index buffer
-    createBuffer(_physicalDevice, _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    createBuffer( _device.getPhysicalDevice(), _device.getDevice(), bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  m_indexBuffer, m_indexBufferMemory);
     // data is copied from staging buffer
-    copyBuffer(_device, _commandPool, _graphicsQueue, stagingBuffer, m_indexBuffer, bufferSize);
+    copyBuffer(_device.getDevice(), _device.getCommandPool(), _device.getGraphicsQueue(), stagingBuffer, m_indexBuffer, bufferSize);
 
     // cleanup data after copy
-    vkDestroyBuffer(_device, stagingBuffer, nullptr);
-    vkFreeMemory(_device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(_device.getDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(_device.getDevice(), stagingBufferMemory, nullptr);
 }
-
 
 } // namespace VulkanDemo
