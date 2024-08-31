@@ -37,6 +37,8 @@ public:
 private:
 
     // Device contains handles for: 
+    //  - VkInstance,
+    //  - debug callback,
     //  - logical device, 
     //  - physical device,
     //  - command pool,
@@ -45,9 +47,6 @@ private:
     std::shared_ptr<Device> m_devicePtr = nullptr; 
 
     GLFWwindow* m_window;
-    VkInstance m_instance;                          
-    VkDebugUtilsMessengerEXT m_debugMessenger;          // debug callback
-    VkSurfaceKHR m_surface;                             // abstract type of surface to present rendered images to
     VkSwapchainKHR m_swapChain;                         // swap chain
     std::vector<VkImage> m_swapChainImages;             // handles of the VkImage
     VkFormat m_swapChainImageFormat;                    // format chosen for the swap chain images
@@ -98,18 +97,13 @@ private:
     void cleanup();
 
     // main steps of initVulkan()
-    void createInstance();
-    void setupDebugMessenger();
-    void createSurface();
     void pickPhysicalDevice();
-    void createLogicalDevice();
     void createSwapChain();
     void createImageViews();
     void createRenderPass();
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
-    void createCommandPool();
     void createDepthResources();
     void createColorResources();
     void createUniformBuffers();
@@ -120,7 +114,6 @@ private:
 
 
     // used in pickPhysicalDevice()
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice _device);
     bool isDeviceSuitable(VkPhysicalDevice _device);
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice _device);
 
@@ -153,13 +146,6 @@ private:
 
     VkSampleCountFlagBits getMaxUsableSampleCount();
 
-    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& _createInfo);
-
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT _messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT _messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* _pCallbackData,
-        void* _pUserData);
 
 };
 

@@ -16,7 +16,7 @@ Create an *external* directory and copy into it the following libraries:
 
 * [GLFW (Graphics Library Framework)](https://www.glfw.org/)
 
-  Download latest version. The library is provided with a Cmake file, use it to generated a VisualStudio solution, then open it, and build
+  Download latest version. The library is provided with a Cmake file, use it to generate a VisualStudio solution, then open it, and build
   
 * [GLM (OpenGL Mathematics)](https://github.com/g-truc/glm)
 

@@ -46,60 +46,6 @@ namespace VulkanDemo
     const std::string MODEL_PATH = "../src/viking_room.obj";
     const std::string TEXTURE_PATH = "../src/viking_room.png";
 
-    /*
-     * Structure for vertex attributes
-     */
-    struct Vertex 
-    {
-        glm::vec3 pos;
-        glm::vec3 color;
-        glm::vec2 texCoord;
-
-
-        bool operator==(const Vertex& _other) const 
-        {
-            return pos == _other.pos && color == _other.color && texCoord == _other.texCoord;
-        }
-
-        static VkVertexInputBindingDescription getBindingDescription() 
-        {
-            VkVertexInputBindingDescription bindingDescription{};
-            bindingDescription.binding = 0;
-            bindingDescription.stride = sizeof(Vertex);
-            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-            // VK_VERTEX_INPUT_RATE_VERTEX = Move to the next data entry after each vertex
-            // VK_VERTEX_INPUT_RATE_INSTANCE = Move to the next data entry after each instance
-
-            return bindingDescription;
-        }
-
-        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() 
-        {
-            std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
-
-            // Attribute description for position
-            attributeDescriptions[0].binding = 0;
-            attributeDescriptions[0].location = 0;
-            attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-            // Attribute description for color
-            attributeDescriptions[1].binding = 0;
-            attributeDescriptions[1].location = 1;
-            attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-            // Attribute description for UVs
-            attributeDescriptions[2].binding = 0;
-            attributeDescriptions[2].location = 2;
-            attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-            attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
-
-            return attributeDescriptions;
-        }
-
-    };
-
 
     /*
      * Structure to store data associated with vertex processing (i.e., MVP matrices)
@@ -419,18 +365,55 @@ namespace VulkanDemo
     }
 
 
+    /*
+     * Looks for all the queue families we need
+     */
+    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice _device, VkSurfaceKHR _surface)
+    {
+        QueueFamilyIndices indices;
+        // Assign index to queue families that could be found
+
+        // get nb of queue families available
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, nullptr);
+
+        // retrieve them and store them in a vector
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, queueFamilies.data());
+
+
+        // We need to find at least one queue family that supports VK_QUEUE_GRAPHICS_BIT
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies)
+        {
+            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                indices.graphicsFamily = i;
+                //break; // early exit
+            }
+
+            // look for a queue family that has the capability of presenting to our window surface
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(_device, i, _surface, &presentSupport);
+
+            if (presentSupport)
+            {
+                indices.presentFamily = i;
+            }
+
+            if (indices.isComplete()) {
+                break;
+            }
+
+            i++;
+        }
+
+        return indices;
+    }
+
+
 
 } // namespace VulkanDemo
 
-
-namespace std {
-    template<> struct hash<VulkanDemo::Vertex> {
-        size_t operator()(VulkanDemo::Vertex const& vertex) const {
-            return ((hash<glm::vec3>()(vertex.pos) ^
-                (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
-                (hash<glm::vec2>()(vertex.texCoord) << 1);
-        }
-    };
-}
 
 #endif // UTILS_H

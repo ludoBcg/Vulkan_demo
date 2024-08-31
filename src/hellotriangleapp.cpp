@@ -64,17 +64,17 @@ void HelloTriangleApp::initVulkan()
 {
     m_devicePtr = std::make_shared<Device>();
 
-    createInstance();
-    setupDebugMessenger();
-    createSurface();
+    m_devicePtr->createInstance();
+    m_devicePtr->setupDebugMessenger();
+    m_devicePtr->createSurface(m_window);
     pickPhysicalDevice();
-    createLogicalDevice();
+    m_devicePtr->createLogicalDevice();
     createSwapChain();
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
     createGraphicsPipeline(); 
-    createCommandPool();
+    m_devicePtr->createCommandPool();
     createColorResources();
     createDepthResources();
     createFramebuffers();
@@ -150,245 +150,18 @@ void HelloTriangleApp::cleanup()
 
     if (enableValidationLayers) 
     {
-        DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+        DestroyDebugUtilsMessengerEXT(m_devicePtr->getInstance(), m_devicePtr->getDebugMessenger(), nullptr);
     }
 
-    vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
+    vkDestroySurfaceKHR(m_devicePtr->getInstance(), m_devicePtr->getSurface(), nullptr);
 
-    vkDestroyInstance(m_instance, nullptr);
+    vkDestroyInstance(m_devicePtr->getInstance(), nullptr);
 
     glfwDestroyWindow(m_window);
 
     glfwTerminate();
 
     std::cout << " 4. cleanup(): OK " << std::endl;
-}
-
-
-/*
- * Debug callback to handle validation layers will messages
- * (would be printed to the standard output by default otherwise)
- */
-VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApp::debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT _messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT _messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* _pCallbackData,
-        void* _pUserData)
-{
-    // messageSeverity param can be one of the following:
-    //    VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: Diagnostic message
-    //    VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT : Informational message like the creation of a resource
-    //    VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT : Message about behavior that is not necessarily an error, but very likely a bug in your application
-    //    VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT : Message about behavior that is invalidand may cause crashes
-
-    // example
-    if (_messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        // Message is important enough to show
-    }
-
-    // messageType param can have the following values :
-    //    VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT: Some event has happened that is unrelated to the specification or performance
-    //    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT : Something has happened that violates the specification or indicates a possible mistake
-    //    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT : Potential non - optimal use of Vulkan
-
-    // pCallbackData param refers to a VkDebugUtilsMessengerCallbackDataEXT struct containing the details of the message itself, with the most important members being :
-    //    pMessage: The debug message as a null - terminated string
-    //    pObjects : Array of Vulkan object handles related to the message
-    //    objectCount : Number of objects in array
-
-
-    std::cerr << "validation layer: " << _pCallbackData->pMessage << std::endl;
-
-    return VK_FALSE;
-}
-
- 
-/*
- * Debug utils messenger
- */
-void HelloTriangleApp::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& _createInfo)
-{
-    _createInfo = {};
-    _createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    _createInfo.messageSeverity = /*VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |*/
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    _createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    _createInfo.pfnUserCallback = debugCallback;
-}
-
-
-/*
- * Creates a VkInstance
- */
-void HelloTriangleApp::createInstance()
-{
-    // Enable validation layers (if debug mode)
-    if (enableValidationLayers && !checkValidationLayerSupport()) {
-        throw std::runtime_error("validation layers requested, but not available!");
-    }
-
-
-    // 1. -----------------------------------------------------------------------------------------
-    // Fill-in the structure specifying application information (optional)
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
-
-    // 2. -----------------------------------------------------------------------------------------
-    // Fill-in the structure specifying parameters of a newly created instance (mandatory)
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo; // ref to application info (defined above)
-    // Specify the desired global extensions to interface with the window system
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount); //use the GLFW built-in function to know which extension is needed
-    //createInfo.enabledExtensionCount = glfwExtensionCount;
-    //createInfo.ppEnabledExtensionNames = glfwExtensions;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    //createInfo.enabledLayerCount = 0;
-
-    // add validation layers (if enabled)
-    if (enableValidationLayers) {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    }
-    else {
-        createInfo.enabledLayerCount = 0;
-    }
-
-    // add extensions
-    auto extensions = getRequiredExtensions();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.data();
-
-
-    // 3. -----------------------------------------------------------------------------------------
-    // Opt: get available extensions ---
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-    std::vector<VkExtensionProperties> extensionsAv(extensionCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionsAv.data());
-    std::cout << "available extensions:" << std::endl;
-    for (const auto& extension : extensionsAv) {
-        std::cout << '\t' << extension.extensionName << std::endl;
-    }
-    // ---
-
-    // see C:\VulkanSDK\1.3.250.1\Config\vk_layer_settings.txt for more behavior of validation layers
-    // copy file to Debug and Release directories and follow the instructions to set the desired behavior
-
-
-    // 4. -----------------------------------------------------------------------------------------
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    if (enableValidationLayers)
-    {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-
-        populateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-    }
-    else
-    {
-        createInfo.enabledLayerCount = 0;
-        createInfo.pNext = nullptr;
-    }
-
-
-    // 5. -----------------------------------------------------------------------------------------
-    // Finally create the instance
-    //VkResult result = vkCreateInstance( &createInfo, // ptr to struct with creation info
-    //                                    nullptr,     // ptr to custom allocator callbacks
-    //                                    &instance    // ptr to the variable that stores the handle to the new object
-    //                                  );
-    if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance!");
-    }
-
-    std::cout << " 2.1. createInstance(): OK " << std::endl;
-}
-
-
-/*
- * Debug messenger
- */
-void HelloTriangleApp::setupDebugMessenger()
-{
-    if (!enableValidationLayers)
-        return;
-
-    // fill-in a structure with details about the messenger and its callback
-    //VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-    //createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    //createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    //createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    //createInfo.pfnUserCallback = debugCallback;
-    //createInfo.pUserData = nullptr; // Optional
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    populateDebugMessengerCreateInfo(createInfo);
-
-    if (CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
-        throw std::runtime_error("failed to set up debug messenger!");
-    }
-
-    std::cout << " 2.2. setupDebugMessenger(): OK " << std::endl;
-}
-
-
-
-/*
- * Looks for all the queue families we need
- */
-QueueFamilyIndices HelloTriangleApp::findQueueFamilies(VkPhysicalDevice _device)
-{
-    QueueFamilyIndices indices;
-    // Assign index to queue families that could be found
-
-    // get nb of queue families available
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, nullptr);
-
-    // retrieve them and store them in a vector
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, queueFamilies.data());
-
-
-    // We need to find at least one queue family that supports VK_QUEUE_GRAPHICS_BIT
-    int i = 0;
-    for (const auto& queueFamily : queueFamilies)
-    {
-        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
-            indices.graphicsFamily = i;
-            //break; // early exit
-        }
-
-        // look for a queue family that has the capability of presenting to our window surface
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(_device, i, m_surface, &presentSupport);
-
-        if (presentSupport)
-        {
-            indices.presentFamily = i;
-        }
-
-        if (indices.isComplete()) {
-            break;
-        }
-
-        i++;
-    }
-
-    return indices;
 }
 
 
@@ -405,7 +178,7 @@ bool HelloTriangleApp::isDeviceSuitable(VkPhysicalDevice _device)
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(_device, &supportedFeatures);
 
-    QueueFamilyIndices indices = findQueueFamilies(_device);
+    QueueFamilyIndices indices = findQueueFamilies(_device, m_devicePtr->getSurface());
 
     // check if the device supports the extensions required
     bool extensionsSupported = checkDeviceExtensionSupport(_device);
@@ -434,41 +207,27 @@ SwapChainSupportDetails HelloTriangleApp::querySwapChainSupport(VkPhysicalDevice
 {
     SwapChainSupportDetails details;
 
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_device, m_surface, &details.capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_device, m_devicePtr->getSurface(), &details.capabilities);
 
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(_device, m_surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(_device, m_devicePtr->getSurface(), &formatCount, nullptr);
 
     if (formatCount != 0) 
     {
         details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(_device, m_surface, &formatCount, details.formats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(_device, m_devicePtr->getSurface(), &formatCount, details.formats.data());
     }
 
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(_device, m_surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(_device, m_devicePtr->getSurface(), &presentModeCount, nullptr);
 
     if (presentModeCount != 0) 
     {
         details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(_device, m_surface, &presentModeCount, details.presentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(_device, m_devicePtr->getSurface(), &presentModeCount, details.presentModes.data());
     }
 
     return details;
-}
-
-
-/*
- * Creates surface, using GLFW implementation 
- * (which fills-in a VkWin32SurfaceCreateInfoKHR struct)
- */
-void HelloTriangleApp::createSurface()
-{
-    if (glfwCreateWindowSurface(m_instance, m_window, nullptr, &m_surface) != VK_SUCCESS) 
-    {
-        throw std::runtime_error("failed to create window surface!");
-    }
-    std::cout << " 2.3. createSurface(): OK " << std::endl;
 }
 
 
@@ -482,7 +241,7 @@ void HelloTriangleApp::pickPhysicalDevice()
     // lists the graphics cards 
     //  starts with querying just the number.
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
+    vkEnumeratePhysicalDevices(m_devicePtr->getInstance(), &deviceCount, nullptr);
 
     // If there are 0 devices with Vulkan support then there is no point going further.
     if (deviceCount == 0) {
@@ -491,7 +250,7 @@ void HelloTriangleApp::pickPhysicalDevice()
 
     // allocate an array to hold all of the VkPhysicalDevice handles.
     std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
+    vkEnumeratePhysicalDevices(m_devicePtr->getInstance(), &deviceCount, devices.data());
 
 
     // check if any of the physical devices meet the requirements defined in isDeviceSuitable()
@@ -510,63 +269,6 @@ void HelloTriangleApp::pickPhysicalDevice()
     }
 
     std::cout << " 2.4. pickPhysicalDevice(): OK " << std::endl;
-}
-
-
-/*
- * Creation of a logical device
- */
-void HelloTriangleApp::createLogicalDevice()
-{
-    QueueFamilyIndices indices = findQueueFamilies(m_devicePtr->getPhysicalDevice());
-
-    // creates one queue for each family
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
-
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies) {
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
- 
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
-    //deviceFeatures.sampleRateShading = VK_TRUE; // enable sample shading feature for the device
-
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-    createInfo.pEnabledFeatures = &deviceFeatures;
-
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-    if (enableValidationLayers) 
-    {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    }
-    else 
-    {
-        createInfo.enabledLayerCount = 0;
-    }
-
-    if (vkCreateDevice(m_devicePtr->getPhysicalDevice(), &createInfo, nullptr, &m_devicePtr->getDevice()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device!");
-    }
-
-    vkGetDeviceQueue(m_devicePtr->getDevice(), indices.graphicsFamily.value(), 0, &m_devicePtr->getGraphicsQueue());
-    vkGetDeviceQueue(m_devicePtr->getDevice(), indices.presentFamily.value(), 0, &m_devicePtr->getPresentQueue());
-
-    std::cout << " 2.5. createLogicalDevice(): OK " << std::endl;
 }
 
 
@@ -650,7 +352,7 @@ void HelloTriangleApp::createSwapChain()
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = m_surface;
+    createInfo.surface = m_devicePtr->getSurface();
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -658,7 +360,7 @@ void HelloTriangleApp::createSwapChain()
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices = findQueueFamilies(m_devicePtr->getPhysicalDevice());
+    QueueFamilyIndices indices = findQueueFamilies(m_devicePtr->getPhysicalDevice(), m_devicePtr->getSurface());
     uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
     if (indices.graphicsFamily != indices.presentFamily) 
@@ -1090,26 +792,6 @@ void HelloTriangleApp::createFramebuffers()
     }
 
     std::cout << " 2.10. createFramebuffers(): OK " << std::endl;
-}
-
-
-/*
- * Creation of command pool
- */
-void HelloTriangleApp::createCommandPool()
-{
-    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_devicePtr->getPhysicalDevice());
-
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
-    if (vkCreateCommandPool(m_devicePtr->getDevice(), &poolInfo, nullptr, &m_devicePtr->getCommandPool()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create command pool!");
-    }
-
-    std::cout << " 2.11. createCommandPool(): OK " << std::endl;
 }
 
 
