@@ -1,6 +1,6 @@
 /*********************************************************************************************************************
  *
- * device.cpp
+ * context.cpp
  *
  * Based on: https://vulkan-tutorial.com/
  *
@@ -9,7 +9,7 @@
  *
  *********************************************************************************************************************/
 
-#include "device.h"
+#include "context.h"
 
 
 
@@ -20,7 +20,7 @@ namespace VulkanDemo
 /*
  * Creates a VkInstance
  */
-void Device::createInstance()
+void Context::createInstance()
 {
     // Enable validation layers (if debug mode)
     if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -116,7 +116,7 @@ void Device::createInstance()
 /*
  * Creation of a logical device
  */
-void Device::createLogicalDevice()
+void Context::createLogicalDevice()
 {
     QueueFamilyIndices indices = findQueueFamilies(m_physicalDevice, m_surface);
 
@@ -173,7 +173,7 @@ void Device::createLogicalDevice()
 /*
  * Creation of command pool
  */
-void Device::createCommandPool()
+void Context::createCommandPool()
 {
     QueueFamilyIndices queueFamilyIndices = findQueueFamilies(m_physicalDevice, m_surface);
 
@@ -194,7 +194,7 @@ void Device::createCommandPool()
  * Creates surface, using GLFW implementation 
  * (which fills-in a VkWin32SurfaceCreateInfoKHR struct)
  */
-void Device::createSurface(GLFWwindow* _window)
+void Context::createSurface(GLFWwindow* _window)
 {
     if (glfwCreateWindowSurface(m_instance, _window, nullptr, &m_surface) != VK_SUCCESS) 
     {
@@ -208,7 +208,7 @@ void Device::createSurface(GLFWwindow* _window)
  * Debug callback to handle validation layers will messages
  * (would be printed to the standard output by default otherwise)
  */
-VKAPI_ATTR VkBool32 VKAPI_CALL Device::debugCallback(
+VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT _messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT _messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* _pCallbackData,
@@ -245,7 +245,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Device::debugCallback(
 /*
  * Debug utils messenger
  */
-void Device::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& _createInfo)
+void Context::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& _createInfo)
 {
     _createInfo = {};
     _createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -262,7 +262,7 @@ void Device::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT
 /*
  * Debug messenger
  */
-void Device::setupDebugMessenger()
+void Context::setupDebugMessenger()
 {
     if (!enableValidationLayers)
         return;

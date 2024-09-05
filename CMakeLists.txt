@@ -9,18 +9,18 @@ set(CMAKE_CXX_STANDARD 17)
 # add files
 set(SRCS
 	src/main.cpp
-	src/device.cpp
+	src/context.cpp
 	src/mesh.cpp
 	src/image.cpp
-	src/hellotriangleapp.cpp
+	src/demoapp.cpp
     )
     
 set(HEADERS
 	src/utils.h
-	src/device.h
+	src/context.h
 	src/mesh.h
 	src/image.h
-	src/hellotriangleapp.h
+	src/demoapp.h
     )
 
 	

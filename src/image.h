@@ -22,7 +22,7 @@
 namespace VulkanDemo
 {
 
-class Device;
+class Context;
 
 class Image
 {
@@ -71,24 +71,24 @@ public:
     uint32_t const getMiplevels() const { return m_mipLevels; }
     VkSampler const getSampler() const { return m_sampler; }
 
-    void cleanup(Device& _device);
+    void cleanup(Context& _context);
 
-    void createImageView(Device& _device, VkFormat _format, VkImageAspectFlags _aspectFlags);
+    void createImageView(Context& _context, VkFormat _format, VkImageAspectFlags _aspectFlags);
 
-    void createTextureSampler(Device& _device);
-    void createTextureImage(Device& _device);
-    void createTextureImageView(Device& _device);
+    void createTextureSampler(Context& _context);
+    void createTextureImage(Context& _context);
+    void createTextureImageView(Context& _context);
 
     // called in createTextureImage()
-    void createImage(Device& _device,
+    void createImage(Context& _context,
                      uint32_t _width, uint32_t _height,
                      VkSampleCountFlagBits _numSamples, VkFormat _format,
                      VkImageTiling _tiling, VkImageUsageFlags _usage, VkMemoryPropertyFlags _properties);
-    void transitionImageLayout(Device& _device,
+    void transitionImageLayout(Context& _context,
                                VkFormat _format, VkImageLayout _oldLayout, VkImageLayout _newLayout);
-    void copyBufferToImage(Device& _device,
+    void copyBufferToImage(Context& _context,
                            VkBuffer _buffer, uint32_t _width, uint32_t _height);
-    void generateMipmaps(Device& _device,
+    void generateMipmaps(Context& _context,
                          VkFormat _imageFormat, int32_t _texWidth, int32_t _texHeight);
 
 

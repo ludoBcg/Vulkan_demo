@@ -26,7 +26,7 @@
 namespace VulkanDemo
 {
 
-class Device;
+class Context;
 
 
 /*
@@ -136,13 +136,13 @@ public:
     VkDeviceMemory const getIndexBufferMemory() const { return m_indexBufferMemory; }
 
 
-    void cleanup(Device& _device);
+    void cleanup(Context& _context);
 
     void createQuads();
     void loadModel();
 
-    void createVertexBuffer(Device& _device);
-    void createIndexBuffer(Device& _device);
+    void createVertexBuffer(Context& _context);
+    void createIndexBuffer(Context& _context);
 
 protected:
 

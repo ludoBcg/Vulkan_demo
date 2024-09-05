@@ -1,8 +1,8 @@
 /*********************************************************************************************************************
  *
- * device.h
+ * context.h
  *
- * Class representation of a Vulkan Device
+ * Class representation of a Vulkan context
  *
  * Based on: https://vulkan-tutorial.com/
  *
@@ -11,8 +11,8 @@
  *
  *********************************************************************************************************************/
 
-#ifndef DEVICE_H
-#define DEVICE_H
+#ifndef CONTEXT_H
+#define CONTEXT_H
 
 
 #include "utils.h"
@@ -21,17 +21,17 @@ namespace VulkanDemo
 {
 
 
-class Device
+class Context
 {
     
 
 public:
 
-    Device() = default;
+    Context() = default;
 
-    Device(Device const& _other) = default;
+    Context(Context const& _other) = default;
 
-    Device(VkInstance _instance,  VkDebugUtilsMessengerEXT _debugMessenger,
+    Context(VkInstance _instance,  VkDebugUtilsMessengerEXT _debugMessenger,
            VkPhysicalDevice _physicalDevice, VkDevice _device, VkCommandPool _commandPool,
            VkQueue _graphicsQueue, VkQueue _presentQueue, VkSurfaceKHR _surface)
         : m_instance(_instance)
@@ -44,7 +44,7 @@ public:
         , m_surface(_surface)
     {}
 
-    Device& operator=(Device const& _other)
+    Context& operator=(Context const& _other)
     {
         m_instance = _other.m_instance;
         m_debugMessenger = _other.m_debugMessenger;
@@ -57,7 +57,7 @@ public:
         return *this;
     }
 
-    Device(Device&& _other)
+    Context(Context&& _other)
         : m_instance(_other.m_instance)
         , m_debugMessenger(_other.m_debugMessenger)
         , m_physicalDevice(_other.m_physicalDevice)
@@ -68,7 +68,7 @@ public:
         , m_surface(_other.m_surface)
     {}
 
-    Device& Device::operator=(Device&& _other)
+    Context& Context::operator=(Context&& _other)
     {
         m_instance = _other.m_instance;
         m_debugMessenger = _other.m_debugMessenger;
@@ -81,7 +81,7 @@ public:
         return *this;
     }
 
-    virtual ~Device() {};
+    virtual ~Context() {};
 
 
     VkInstance const& getInstance() const { return m_instance; }
@@ -121,8 +121,8 @@ protected:
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& _createInfo);
     
 
-}; // class Device
+}; // class Context
 
 } // namespace VulkanDemo
 
-#endif // DEVICE_H
+#endif // CONTEXT_H

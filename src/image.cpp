@@ -18,7 +18,7 @@
 #include <stb_image.h>
 
 #include "image.h"
-#include "device.h"
+#include "context.h"
 
 
 
@@ -29,20 +29,20 @@ namespace VulkanDemo
 /*
  * Destroyes buffers and frees memory
  */
-void Image::cleanup(Device& _device)
+void Image::cleanup(Context& _context)
 {
     if(m_sampler != nullptr)
-        vkDestroySampler(_device.getDevice(), m_sampler, nullptr);
-    vkDestroyImageView(_device.getDevice(), m_imageView, nullptr);
-    vkDestroyImage(_device.getDevice(), m_image, nullptr);
-    vkFreeMemory(_device.getDevice(), m_imageMemory, nullptr);
+        vkDestroySampler(_context.getDevice(), m_sampler, nullptr);
+    vkDestroyImageView(_context.getDevice(), m_imageView, nullptr);
+    vkDestroyImage(_context.getDevice(), m_image, nullptr);
+    vkFreeMemory(_context.getDevice(), m_imageMemory, nullptr);
 }
 
 
 /*
  * Image object creation and memory allocation
  */
-void Image::createImage(Device& _device,
+void Image::createImage(Context& _context,
                         uint32_t _width, uint32_t _height,
                         VkSampleCountFlagBits _numSamples, VkFormat _format,
                         VkImageTiling _tiling, VkImageUsageFlags _usage, VkMemoryPropertyFlags _properties)
@@ -63,30 +63,30 @@ void Image::createImage(Device& _device,
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.flags = 0; // Optional
 
-    if (vkCreateImage(_device.getDevice(), &imageInfo, nullptr, &m_image) != VK_SUCCESS) {
+    if (vkCreateImage(_context.getDevice(), &imageInfo, nullptr, &m_image) != VK_SUCCESS) {
         throw std::runtime_error("failed to create image!");
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(_device.getDevice(), m_image, &memRequirements);
+    vkGetImageMemoryRequirements(_context.getDevice(), m_image, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(_device.getPhysicalDevice(), memRequirements.memoryTypeBits, _properties);
+    allocInfo.memoryTypeIndex = findMemoryType(_context.getPhysicalDevice(), memRequirements.memoryTypeBits, _properties);
 
-    if (vkAllocateMemory(_device.getDevice(), &allocInfo, nullptr, &m_imageMemory) != VK_SUCCESS) {
+    if (vkAllocateMemory(_context.getDevice(), &allocInfo, nullptr, &m_imageMemory) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate image memory!");
     }
 
-    vkBindImageMemory(_device.getDevice(), m_image, m_imageMemory, 0);
+    vkBindImageMemory(_context.getDevice(), m_image, m_imageMemory, 0);
 }
 
 
 /*
  * Creation of one image view
  */
-void Image::createImageView(Device& _device, VkFormat _format, VkImageAspectFlags _aspectFlags)
+void Image::createImageView(Context& _context, VkFormat _format, VkImageAspectFlags _aspectFlags)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -99,7 +99,7 @@ void Image::createImageView(Device& _device, VkFormat _format, VkImageAspectFlag
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(_device.getDevice(), &viewInfo, nullptr, &m_imageView) != VK_SUCCESS) {
+    if (vkCreateImageView(_context.getDevice(), &viewInfo, nullptr, &m_imageView) != VK_SUCCESS) {
         throw std::runtime_error("failed to create texture image view!");
     }
 
@@ -109,10 +109,10 @@ void Image::createImageView(Device& _device, VkFormat _format, VkImageAspectFlag
 /*
  * Set up such a sampler object
  */
-void Image::createTextureSampler(Device& _device)
+void Image::createTextureSampler(Context& _context)
 {
     VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(_device.getPhysicalDevice(), &properties);
+    vkGetPhysicalDeviceProperties(_context.getPhysicalDevice(), &properties);
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -132,7 +132,7 @@ void Image::createTextureSampler(Device& _device)
     samplerInfo.maxLod = static_cast<float>(m_mipLevels);
     samplerInfo.mipLodBias = 0.0f; // Optional
 
-    if (vkCreateSampler(_device.getDevice(), &samplerInfo, nullptr, &m_sampler) != VK_SUCCESS) {
+    if (vkCreateSampler(_context.getDevice(), &samplerInfo, nullptr, &m_sampler) != VK_SUCCESS) {
         throw std::runtime_error("failed to create texture sampler!");
     }
 }
@@ -141,7 +141,7 @@ void Image::createTextureSampler(Device& _device)
 /*
  * Load an image and upload it into a Vulkan image object
  */
-void Image::createTextureImage(Device& _device)
+void Image::createTextureImage(Context& _context)
 {
     // load image
     int texWidth, texHeight, texChannels;
@@ -158,58 +158,58 @@ void Image::createTextureImage(Device& _device)
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
 
-    createBuffer(_device.getPhysicalDevice(), _device.getDevice(), imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    createBuffer(_context.getPhysicalDevice(), _context.getDevice(), imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         stagingBuffer, stagingBufferMemory);
 
     void* data;
-    vkMapMemory(_device.getDevice(), stagingBufferMemory, 0, imageSize, 0, &data);
+    vkMapMemory(_context.getDevice(), stagingBufferMemory, 0, imageSize, 0, &data);
     memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(_device.getDevice(), stagingBufferMemory);
+    vkUnmapMemory(_context.getDevice(), stagingBufferMemory);
 
     stbi_image_free(pixels);
 
 
     // create a texture
-    createImage(_device,
+    createImage(_context,
         texWidth, texHeight, VK_SAMPLE_COUNT_1_BIT,
         VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    transitionImageLayout(_device,
+    transitionImageLayout(_context,
         VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
     //transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
-    copyBufferToImage(_device, stagingBuffer, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    copyBufferToImage(_context, stagingBuffer, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
 
 
-    vkDestroyBuffer( _device.getDevice(), stagingBuffer, nullptr);
-    vkFreeMemory( _device.getDevice(), stagingBufferMemory, nullptr);
+    vkDestroyBuffer( _context.getDevice(), stagingBuffer, nullptr);
+    vkFreeMemory( _context.getDevice(), stagingBufferMemory, nullptr);
 
-    generateMipmaps( _device, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight);
+    generateMipmaps( _context, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight);
 }
 
 
 /*
  * Image view for the texture image
  */
-void Image::createTextureImageView(Device& _device)
+void Image::createTextureImageView(Context& _context)
 {
-    createImageView(_device, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+    createImageView(_context, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 
 /*
  * Handles layout transitions
  */
-void Image::transitionImageLayout(Device& _device, 
+void Image::transitionImageLayout(Context& _context, 
                                   VkFormat _format, VkImageLayout _oldLayout, VkImageLayout _newLayout)
 {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(_device.getDevice(), _device.getCommandPool());
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(_context.getDevice(), _context.getCommandPool());
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
@@ -276,17 +276,17 @@ void Image::transitionImageLayout(Device& _device,
         1, &barrier
     );
 
-    endSingleTimeCommands(_device.getDevice(), commandBuffer, _device.getCommandPool(), _device.getGraphicsQueue());
+    endSingleTimeCommands(_context.getDevice(), commandBuffer, _context.getCommandPool(), _context.getGraphicsQueue());
 }
 
 
 /*
  * Helper function to copy buffer to image
  */
-void Image::copyBufferToImage(Device& _device,
+void Image::copyBufferToImage(Context& _context,
                               VkBuffer _buffer, uint32_t _width, uint32_t _height)
 {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(_device.getDevice(), _device.getCommandPool());
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(_context.getDevice(), _context.getCommandPool());
 
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
@@ -314,25 +314,25 @@ void Image::copyBufferToImage(Device& _device,
         &region
     );
 
-    endSingleTimeCommands(_device.getDevice(), commandBuffer, _device.getCommandPool(), _device.getGraphicsQueue());
+    endSingleTimeCommands(_context.getDevice(), commandBuffer, _context.getCommandPool(), _context.getGraphicsQueue());
 }
 
 
 /*
  * generates the mipmaps
  */
-void Image::generateMipmaps(Device& _device,
+void Image::generateMipmaps(Context& _context,
                             VkFormat _imageFormat, int32_t _texWidth, int32_t _texHeight)
 {
     // Check if image format supports linear blitting
     VkFormatProperties formatProperties;
-    vkGetPhysicalDeviceFormatProperties(_device.getPhysicalDevice(), _imageFormat, &formatProperties);
+    vkGetPhysicalDeviceFormatProperties(_context.getPhysicalDevice(), _imageFormat, &formatProperties);
 
     if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
         throw std::runtime_error("texture image format does not support linear blitting!");
     }
 
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands(_device.getDevice(), _device.getCommandPool());
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands(_context.getDevice(), _context.getCommandPool());
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -409,7 +409,7 @@ void Image::generateMipmaps(Device& _device,
         0, nullptr,
         1, &barrier);
 
-    endSingleTimeCommands(_device.getDevice(), commandBuffer, _device.getCommandPool(), _device.getGraphicsQueue());
+    endSingleTimeCommands(_context.getDevice(), commandBuffer, _context.getCommandPool(), _context.getGraphicsQueue());
 }
 
 

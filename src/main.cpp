@@ -13,13 +13,13 @@
 
 #include <stdexcept>
 
-#include "hellotriangleapp.h"
+#include "demoapp.h"
 
 
 int main() 
 {
 
-    VulkanDemo::HelloTriangleApp app;
+    VulkanDemo::DemoApp app;
 
     try 
     {

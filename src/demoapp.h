@@ -1,6 +1,6 @@
 /*********************************************************************************************************************
  *
- * hellotriangleapp.h
+ * demoapp.h
  *
  * The Vulkan application
  *
@@ -18,7 +18,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
-#include "device.h"
+#include "context.h"
 #include "mesh.h"
 #include "image.h"
 
@@ -26,7 +26,7 @@ namespace VulkanDemo
 {
 
 
-class HelloTriangleApp
+class DemoApp
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -36,7 +36,7 @@ public:
 
 private:
 
-    // Device contains handles for: 
+    // Context contains handles for: 
     //  - VkInstance,
     //  - debug callback,
     //  - logical device, 
@@ -44,7 +44,7 @@ private:
     //  - command pool,
     //  - graphics queue,
     //  - presentation queue
-    std::shared_ptr<Device> m_devicePtr = nullptr; 
+    std::shared_ptr<Context> m_contextPtr = nullptr; 
 
     GLFWwindow* m_window;
     VkSwapchainKHR m_swapChain;                         // swap chain
