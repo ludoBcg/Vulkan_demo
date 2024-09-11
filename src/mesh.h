@@ -23,6 +23,8 @@
 
 #include "utils.h"
 
+#include <string>
+
 namespace VulkanDemo
 {
 
@@ -37,11 +39,12 @@ struct Vertex
     glm::vec3 pos;
     glm::vec3 color;
     glm::vec2 texCoord;
+    glm::vec3 normal;
 
 
     bool operator==(const Vertex& _other) const 
     {
-        return pos == _other.pos && color == _other.color && texCoord == _other.texCoord;
+        return pos == _other.pos && color == _other.color && texCoord == _other.texCoord && normal == _other.normal;
     }
 
     static VkVertexInputBindingDescription getBindingDescription() 
@@ -56,9 +59,9 @@ struct Vertex
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() 
+    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() 
     {
-        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
 
         // Attribute description for position
         attributeDescriptions[0].binding = 0;
@@ -77,6 +80,12 @@ struct Vertex
         attributeDescriptions[2].location = 2;
         attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
         attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
+        // Attribute description for normals
+        attributeDescriptions[3].binding = 0;
+        attributeDescriptions[3].location = 3;
+        attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[3].offset = offsetof(Vertex, normal);
 
         return attributeDescriptions;
     }
@@ -167,12 +176,25 @@ protected:
 } // namespace VulkanDemo
 
 
+//namespace std {
+//    template<> struct hash<VulkanDemo::Vertex> {
+//        size_t operator()(VulkanDemo::Vertex const& vertex) const {
+//            return ((hash<glm::vec3>()(vertex.pos) ^
+//                    (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+//                    (hash<glm::vec2>()(vertex.texCoord) << 1);
+//        }
+//    };
+//}
 namespace std {
     template<> struct hash<VulkanDemo::Vertex> {
-        size_t operator()(VulkanDemo::Vertex const& vertex) const {
-            return ((hash<glm::vec3>()(vertex.pos) ^
-                (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
-                (hash<glm::vec2>()(vertex.texCoord) << 1);
+        size_t operator()(VulkanDemo::Vertex const& vertex) const 
+        {
+            std::size_t h1 = hash<glm::vec3>()(vertex.pos);
+            std::size_t h2 = hash<glm::vec3>()(vertex.color);
+            std::size_t h3 = hash<glm::vec2>()(vertex.texCoord);
+            std::size_t h4 = hash<glm::vec3>()(vertex.normal);
+            std::string stg = std::to_string(h1) + std::to_string(h2) + std::to_string(h3) + std::to_string(h4);
+            return std::hash<std::string>()(stg);
         }
     };
 }
