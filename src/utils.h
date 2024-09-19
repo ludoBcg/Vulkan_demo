@@ -43,18 +43,19 @@ namespace VulkanDemo
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
 
-    const std::string MODEL_PATH = "../src/viking_room.obj";
-    const std::string TEXTURE_PATH = "../src/viking_room.png";
+    const std::string MODEL_PATH = "../models/viking_room/viking_room.obj";
+    const std::string TEXTURE_PATH = "../models/viking_room/viking_room.png";
 
 
     /*
-     * Structure to store data associated with vertex processing (i.e., MVP matrices)
+     * Structure to store data associated with vertex processing (i.e., MVP matrices and other uniforms)
      */
     struct UniformBufferObject 
     {
         alignas(16) glm::mat4 model;
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 proj;
+        alignas(16) glm::vec3 lightPos;
     };
 
 

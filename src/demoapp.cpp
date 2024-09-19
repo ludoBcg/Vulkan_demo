@@ -34,6 +34,7 @@ void DemoApp::run()
 {
     initWindow();
     initVulkan();
+    initUBO();
     mainLoop();
     cleanup();
 }
@@ -53,6 +54,10 @@ void DemoApp::initWindow()
     m_window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan_demo", nullptr, nullptr);
     glfwSetWindowUserPointer(m_window, this);
     glfwSetFramebufferSizeCallback(m_window, framebufferResizeCallback);
+    glfwSetKeyCallback(m_window, keyCallback);
+    glfwSetMouseButtonCallback(m_window, mouseButtonCallback);
+    glfwSetScrollCallback(m_window, scrollCallback);
+    glfwSetCursorPosCallback(m_window, cursorPosCallback);
 
     std::cout << " 1. initWindow(): OK " << std::endl;
 }
@@ -91,6 +96,25 @@ void DemoApp::initVulkan()
     createSyncObjects();
 
     std::cout << " 2. initVulkan(): OK " << std::endl;
+}
+
+/*
+ * Initializes transformation Matrices 
+ */
+void DemoApp::initUBO()
+{
+    m_camera.init(0.01f, 8.0f, 45.0f, 1.0f, m_swapChainExtent.width, m_swapChainExtent.height, glm::vec3(0.0f, 2.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0); 
+    m_trackball.init(m_swapChainExtent.width, m_swapChainExtent.height);
+
+    // initial transformation to re-orient mesh
+    m_initModel = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f))
+                * glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    // build MVP matrices
+    m_ubo.model = m_initModel;
+    m_ubo.view = m_camera.getViewMatrix();
+    m_ubo.proj = m_camera.getProjectionMatrix();
+    m_ubo.proj[1][1] *= -1;
+    m_ubo.lightPos = glm::vec3(2.0f, 2.0f, 0.0f); // light source position in view space
 }
 
 /*
@@ -394,6 +418,8 @@ void DemoApp::createSwapChain()
 
     m_swapChainImageFormat = surfaceFormat.format;
     m_swapChainExtent = extent;
+
+    initUBO(); // re-init camera and trackball when resize occurs
 
     std::cout << " 2.6. createSwapChain(): OK " << std::endl;
 }
@@ -1223,18 +1249,15 @@ void DemoApp::recreateSwapChain()
  */
 void DemoApp::updateUniformBuffer(uint32_t _currentImage) 
 {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    //static auto startTime = std::chrono::high_resolution_clock::now();
+    //auto currentTime = std::chrono::high_resolution_clock::now();
+    //float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    // build MVP matrices (rotation added to the model matrix)
-    UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), m_swapChainExtent.width / (float)m_swapChainExtent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
+    //m_initModel = glm::rotate(m_initModel, glm::radians(0.05f), glm::vec3(0.0f, 0.0f, 1.0f));
+    m_ubo.model = m_trackball.getRotationMatrix() 
+                * m_initModel;
 
-    memcpy(m_uniformBuffersMapped[_currentImage], &ubo, sizeof(ubo));
+    memcpy(m_uniformBuffersMapped[_currentImage], &m_ubo, sizeof(m_ubo));
 }
 
 
@@ -1245,6 +1268,64 @@ void DemoApp::framebufferResizeCallback(GLFWwindow* _window, int _width, int _he
 {
     auto app = reinterpret_cast<DemoApp*>(glfwGetWindowUserPointer(_window));
     app->m_framebufferResized = true;
+}
+
+/*
+ * Keyboard event callback
+ */
+void DemoApp::keyCallback(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods)
+{
+    // return to init positon when "R" pressed
+    if (_key == GLFW_KEY_R && _action == GLFW_PRESS)
+    {
+        auto app = reinterpret_cast<DemoApp*>(glfwGetWindowUserPointer(_window));
+        app->m_trackball.reStart();
+    }
+}
+
+/*
+ * Mouse button event callback
+ */
+void DemoApp::mouseButtonCallback(GLFWwindow* _window, int _button, int _action, int _mods)
+{
+    auto app = reinterpret_cast<DemoApp*>(glfwGetWindowUserPointer(_window));
+
+    // get mouse cursor position
+    double x, y;
+    glfwGetCursorPos(_window, &x, &y);
+
+    // activate/de-activate trackball with mouse button
+    if (_action == GLFW_PRESS) 
+    {
+        if (_button == GLFW_MOUSE_BUTTON_LEFT)
+            app->m_trackball.startTracking( glm::vec2(x, y) );
+    }
+    else 
+    {
+        if (_button == GLFW_MOUSE_BUTTON_LEFT)
+            app->m_trackball.stopTracking();
+    }
+    
+}
+
+/*
+ * Mouse scroll event callback
+ */
+void DemoApp::scrollCallback(GLFWwindow* _window, double _xoffset, double _yoffset)
+{
+}
+
+
+/*
+ * Mouse cursor event callback
+ */
+void DemoApp::cursorPosCallback(GLFWwindow* _window, double _x, double _y)
+{
+    auto app = reinterpret_cast<DemoApp*>(glfwGetWindowUserPointer(_window));
+
+    // rotate trackball according to mouse cursor movement
+    if ( app->m_trackball.isTracking()) 
+        app->m_trackball.move( glm::vec2(_x, _y) );
 }
 
 

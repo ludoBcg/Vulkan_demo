@@ -7,7 +7,9 @@ layout(set = 0, binding = 0) uniform UniformBufferObject
     mat4 model;
     mat4 view;
     mat4 proj;
+    vec3 lightPos;
 } ubo;
+
 
 // ATTRIBUTE INPUT (i.e., vertex buffer data)
 layout(location = 0) in vec3 inPosition;
@@ -29,7 +31,7 @@ void main()
     fragTexCoord = inTexCoord;
 
     fragNormal = inNormal; // normal in model space
-    vec4 lightPos = inverse(ubo.view * ubo.model) * vec4(2.0, 0.0, 0.0, 1.0); // light position (next to the camera) in model space
+    vec4 lightPos = inverse(ubo.view * ubo.model) * vec4(ubo.lightPos.rgb, 1.0); // light position (next to the camera) in model space
     fragLightDir = normalize(lightPos.rgb - inPosition); // light direction vector
     
 }

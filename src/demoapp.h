@@ -21,6 +21,7 @@
 #include "context.h"
 #include "mesh.h"
 #include "image.h"
+#include "GLtools.h"
 
 namespace VulkanDemo
 {
@@ -81,6 +82,11 @@ private:
     // Mesh contains vertex buffer and index buffer
     Mesh m_mesh;
 
+    UniformBufferObject m_ubo{};
+    glm::mat4 m_initModel;
+    GLtools::Camera m_camera;
+    GLtools::Trackball m_trackball;
+
     // uniforms storage
     std::vector<VkBuffer> m_uniformBuffers;
     std::vector<VkDeviceMemory> m_uniformBuffersMemory;
@@ -93,6 +99,7 @@ private:
     // main steps of run()
     void initWindow();
     void initVulkan();
+    void initUBO();
     void mainLoop();
     void cleanup();
 
@@ -143,6 +150,10 @@ private:
 
     // UI callbacks
     static void framebufferResizeCallback(GLFWwindow* _window, int _width, int _height);
+    static void keyCallback(GLFWwindow* _window, int _key, int _scancode, int _action, int _mods);
+    static void mouseButtonCallback(GLFWwindow* _window, int _button, int _action, int _mods);
+    static void scrollCallback(GLFWwindow* _window, double _xoffset, double _yoffset);
+    static void cursorPosCallback(GLFWwindow* _window, double _x, double _y);
 
     VkSampleCountFlagBits getMaxUsableSampleCount();
 
