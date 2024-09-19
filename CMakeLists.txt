@@ -21,6 +21,7 @@ set(HEADERS
 	src/mesh.h
 	src/image.h
 	src/demoapp.h
+	src/GLtools.h
     )
 
 	
