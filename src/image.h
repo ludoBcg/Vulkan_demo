@@ -52,7 +52,7 @@ public:
         , m_sampler(_other.m_sampler)
     {}
 
-    Image& Image::operator=(Image&& _other)
+    Image& operator=(Image&& _other)
     {
         m_image = _other.m_image;
         m_imageMemory = _other.m_imageMemory;

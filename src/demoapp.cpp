@@ -16,15 +16,11 @@
 #include <chrono>
 #include <unordered_map>
 
-
-
 #include "demoapp.h"
-
 
 
 namespace VulkanDemo
 {
-
 
 
 /*
@@ -59,7 +55,7 @@ void DemoApp::initWindow()
     glfwSetScrollCallback(m_window, scrollCallback);
     glfwSetCursorPosCallback(m_window, cursorPosCallback);
 
-    std::cout << " 1. initWindow(): OK " << std::endl;
+    infoLog() << "initWindow(): OK ";
 }
 
 /*
@@ -95,7 +91,7 @@ void DemoApp::initVulkan()
     createCommandBuffers();
     createSyncObjects();
 
-    std::cout << " 2. initVulkan(): OK " << std::endl;
+    infoLog() << "initVulkan(): OK ";
 }
 
 /*
@@ -117,12 +113,13 @@ void DemoApp::initUBO()
     m_ubo.lightPos = glm::vec3(2.0f, 2.0f, 0.0f); // light source position in view space
 }
 
+
 /*
  * Executes main loop until app closed
  */
 void DemoApp::mainLoop()
 {
-    std::cout << " 3.1. ENTER main loop " << std::endl;
+    infoLog() << "enter main loop ";
     while (!glfwWindowShouldClose(m_window))
     {
         glfwPollEvents();
@@ -132,7 +129,7 @@ void DemoApp::mainLoop()
 
     vkDeviceWaitIdle(m_contextPtr->getDevice());
 
-    std::cout << " 3.2. EXIT main loop " << std::endl;
+    infoLog() << "exit main loop ";
 }
 
 /*
@@ -185,7 +182,7 @@ void DemoApp::cleanup()
 
     glfwTerminate();
 
-    std::cout << " 4. cleanup(): OK " << std::endl;
+    infoLog() << "cleanup(): OK ";
 }
 
 
@@ -292,7 +289,7 @@ void DemoApp::pickPhysicalDevice()
         throw std::runtime_error("failed to find a suitable GPU!");
     }
 
-    std::cout << " 2.4. pickPhysicalDevice(): OK " << std::endl;
+    infoLog() << "pickPhysicalDevice(): OK ";
 }
 
 
@@ -421,7 +418,7 @@ void DemoApp::createSwapChain()
 
     initUBO(); // re-init camera and trackball when resize occurs
 
-    std::cout << " 2.6. createSwapChain(): OK " << std::endl;
+    infoLog() << "createSwapChain(): OK ";
 }
 
 
@@ -463,7 +460,7 @@ void DemoApp::createImageViews()
         m_swapChainImageViews[i] = createImageView(m_swapChainImages[i], m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
 
-    std::cout << " 2.7. createImageViews(): OK " << std::endl;
+    infoLog() << "createImageViews(): OK ";
 }
 
 
@@ -550,7 +547,7 @@ void DemoApp::createRenderPass()
         throw std::runtime_error("failed to create render pass!");
     }
 
-    std::cout << " 2.8. createRenderPass(): OK " << std::endl;
+    infoLog() << "createRenderPass(): OK ";
 }
 
 
@@ -592,8 +589,8 @@ void DemoApp::createDescriptorSetLayout()
  */
 void DemoApp::createGraphicsPipeline()
 {
-    auto vertShaderCode = readFile("../src/shaders/vert.spv");
-    auto fragShaderCode = readFile("../src/shaders/frag.spv");
+    auto vertShaderCode = GLtools::readFile("../src/shaders/vert.spv");
+    auto fragShaderCode = GLtools::readFile("../src/shaders/frag.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -765,7 +762,7 @@ void DemoApp::createGraphicsPipeline()
     vkDestroyShaderModule(m_contextPtr->getDevice(), vertShaderModule, nullptr);
     
 
-    std::cout << " 2.9. createGraphicsPipeline(): OK " << std::endl;
+    infoLog() << "createGraphicsPipeline(): OK ";
 }
 
 
@@ -817,7 +814,7 @@ void DemoApp::createFramebuffers()
         }
     }
 
-    std::cout << " 2.10. createFramebuffers(): OK " << std::endl;
+    infoLog() << "createFramebuffers(): OK ";
 }
 
 
@@ -1012,7 +1009,7 @@ void DemoApp::createCommandBuffers()
         throw std::runtime_error("failed to allocate command buffers!");
     }
 
-    std::cout << " 2.11. createCommandBuffer(): OK " << std::endl;
+    infoLog() << "createCommandBuffer(): OK ";
 }
 
 
@@ -1119,7 +1116,7 @@ void DemoApp::createSyncObjects()
         }
     }
 
-    std::cout << " 2.12. createSyncObjects(): OK " << std::endl;
+    infoLog() << "createSyncObjects(): OK ";
 }
 
 

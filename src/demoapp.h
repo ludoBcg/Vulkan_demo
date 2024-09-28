@@ -21,7 +21,7 @@
 #include "context.h"
 #include "mesh.h"
 #include "image.h"
-#include "GLtools.h"
+
 
 namespace VulkanDemo
 {

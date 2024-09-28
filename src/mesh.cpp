@@ -118,7 +118,7 @@ void Mesh::loadModel()
             m_indices.push_back(uniqueVertices[vertex]);
         }
     }
-    std::cout << "number of unique vertices: " << uniqueVertices.size() << std::endl;
+    infoLog() << "number of unique vertices: " + std::to_string(uniqueVertices.size());
 }
 
 

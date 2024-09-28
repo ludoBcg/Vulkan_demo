@@ -123,7 +123,7 @@ public:
         , m_indexBufferMemory(_other.m_indexBufferMemory)
     {}
 
-    Mesh& Mesh::operator=(Mesh&& _other)
+    Mesh& operator=(Mesh&& _other)
     {
         m_vertices = std::move(_other.m_vertices);
         m_indices = std::move(_other.m_indices);

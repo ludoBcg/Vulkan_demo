@@ -2,6 +2,7 @@
  *
  * utils.h
  *
+ * Collection of helpers functions
  * Based on: https://vulkan-tutorial.com/
  *
  * Vulkan_demo
@@ -35,6 +36,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h> // gives access to native platform functions
 
+#include "GLtools.h"
 
 
 namespace VulkanDemo
@@ -109,7 +111,7 @@ namespace VulkanDemo
                 return false;
             }
         }
-        std::cout << " checkValidationLayerSupport(): OK " << std::endl;
+        infoLog() << "checkValidationLayerSupport(): OK ";
         return true;
     }
 
@@ -153,7 +155,7 @@ namespace VulkanDemo
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // same as VK_EXT_debug_utils
         }
 
-        std::cout << " getRequiredExtensions(): OK " << std::endl;
+        infoLog() << "getRequiredExtensions(): OK ";
         return extensions;
     }
 
@@ -214,30 +216,6 @@ namespace VulkanDemo
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
     };
-
-
-    /*
-     * Read shader files
-     */
-    inline static std::vector<char> readFile(const std::string& filename)
-    {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-        if (!file.is_open()) 
-        {
-            throw std::runtime_error("failed to open file! Check if relative path to file is consistent with working directory");
-        }
-
-        size_t fileSize = (size_t)file.tellg();
-        std::vector<char> buffer(fileSize);
-
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-
-        file.close();
-
-        return buffer;
-    }
 
 
     /*

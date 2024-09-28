@@ -73,10 +73,12 @@ void Context::createInstance()
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> extensionsAv(extensionCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensionsAv.data());
-    std::cout << "available extensions:" << std::endl;
+    
+    std::string extensionNames = "available extensions:\n";
     for (const auto& extension : extensionsAv) {
-        std::cout << '\t' << extension.extensionName << std::endl;
+        extensionNames += "\t" + std::string(extension.extensionName) + "\n";
     }
+    infoLog() << extensionNames;
     // ---
 
     // see C:\VulkanSDK\1.3.250.1\Config\vk_layer_settings.txt for more behavior of validation layers
@@ -110,7 +112,7 @@ void Context::createInstance()
         throw std::runtime_error("failed to create instance!");
     }
 
-    std::cout << " createInstance(): OK " << std::endl;
+    infoLog() << "createInstance(): OK ";
 }
 
 /*
@@ -166,7 +168,7 @@ void Context::createLogicalDevice()
     vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
     vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
 
-    std::cout << " createLogicalDevice(): OK " << std::endl;
+    infoLog() << "createLogicalDevice(): OK ";
 }
 
 
@@ -186,7 +188,7 @@ void Context::createCommandPool()
         throw std::runtime_error("failed to create command pool!");
     }
 
-    std::cout << " createCommandPool(): OK " << std::endl;
+    infoLog() << "createCommandPool(): OK ";
 }
 
 
@@ -200,7 +202,7 @@ void Context::createSurface(GLFWwindow* _window)
     {
         throw std::runtime_error("failed to create window surface!");
     }
-    std::cout << " createSurface(): OK " << std::endl;
+    infoLog() << "createSurface(): OK ";
 }
 
 
@@ -236,7 +238,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Context::debugCallback(
     //    objectCount : Number of objects in array
 
 
-    std::cerr << "validation layer: " << _pCallbackData->pMessage << std::endl;
+    errorLog() << "validation layer: " + std::string(_pCallbackData->pMessage);
 
     return VK_FALSE;
 }
@@ -281,7 +283,7 @@ void Context::setupDebugMessenger()
         throw std::runtime_error("failed to set up debug messenger!");
     }
 
-    std::cout << " setupDebugMessenger(): OK " << std::endl;
+    infoLog() << "setupDebugMessenger(): OK ";
 }
 
 

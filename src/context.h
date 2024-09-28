@@ -68,7 +68,7 @@ public:
         , m_surface(_other.m_surface)
     {}
 
-    Context& Context::operator=(Context&& _other)
+    Context& operator=(Context&& _other)
     {
         m_instance = _other.m_instance;
         m_debugMessenger = _other.m_debugMessenger;
