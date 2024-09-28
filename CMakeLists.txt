@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.0)
 # create project
 project(Vulkan_demo)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # add files
 set(SRCS
@@ -21,37 +21,44 @@ set(HEADERS
 	src/mesh.h
 	src/image.h
 	src/demoapp.h
-	src/GLtools.h
+	libs/GLtools.h
     )
 
 	
-################################# EXTERNAL LIBS ######################
-
 # Add include directories
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src" )
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/src" )
+# Internal dependencies
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/libs")
 
+
+############################### EXTERNAL DEPENDENCIES ################
+
+
+# Vulkan
 include_directories("C:/VulkanSDK/1.3.250.1/Include")
 link_directories("C:/VulkanSDK/1.3.250.1/Lib")
 SET(VULKAN_LIBS vulkan-1.lib)
+# flag for conditional compilation
+add_compile_definitions(USE_VULKAN)
 
 
 # GLFW (to compile before)
-set(GLFW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/glfw-3.3.8")
+set(GLFW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libs/third_party/glfw-3.4")
 include_directories(${GLFW_DIR}/include)
 link_directories(${GLFW_DIR}/build/src/Release)
 SET(GLFW_LIBS glfw3.lib)
 
 
 # GLM (Header only!)
-include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/external/glm")
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/libs/third_party/glm-1.0.1")
 
 
 # STB
-include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/external/stb")
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/libs/third_party/stb")
 
 
 # tinyobjloader
-include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader")
+include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/libs/third_party/tinyobjloader")
 
 
 ################################# BUILD PROJECT ######################
