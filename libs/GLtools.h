@@ -41,6 +41,11 @@
 #include <cuda_runtime.h>
 #endif
 
+#ifdef USE_OPENGL
+#define QT_NO_OPENGL_ES_2
+#include <GL/glew.h>
+#endif
+
 
 namespace GLtools
 {
@@ -261,26 +266,35 @@ namespace GLtools
             m_farPlane = _far;
             m_fovy = _fov;
             m_orthoOpening = _radScene * 2.0f;
-            m_zoomFactor = _zoomFactor;
 
-            initProjectionMatrix(_width, _height, _projType);
+            initProjectionMatrix(_width, _height, _zoomFactor, _projType);
             initViewMatrix(_camCoords, _centerCoords);
         }
 
 
         /*!
         * \fn initProjectionMatrix
-        * \brief Initialize the perspective projection matrix given the viewport dimensions
+        * \brief Initialize the perspective projection matrix given the viewport dimensions and a zoom factor
         * \param _projType : 3projection type: perspective = 0, orthogonal = 1
         */
-        void initProjectionMatrix(int _width, int _height, int _projType)
+        void initProjectionMatrix(int _width, int _height, float _zoomFactor, int _projType)
         {
             m_aspect = (float)_width / (float)_height;
+            m_zoomFactor = _zoomFactor;
 
             if (_projType == 0)
                 m_projectionMatrix = glm::perspective(glm::radians(m_fovy) * m_zoomFactor, m_aspect, m_nearPlane, m_farPlane);
             else if (_projType == 1)
-                m_projectionMatrix = glm::ortho(-m_orthoOpening * m_aspect, m_orthoOpening * m_aspect, -m_orthoOpening, m_orthoOpening, m_nearPlane, m_farPlane);
+            {
+                //m_projectionMatrix = glm::ortho(-m_orthoOpening * m_aspect, m_orthoOpening * m_aspect, -m_orthoOpening, m_orthoOpening, m_nearPlane, m_farPlane);
+                // multiply width by aspect ratio to avoid stretching
+                m_projectionMatrix = glm::ortho(-m_orthoOpening * m_aspect * m_zoomFactor, 
+                                                 m_orthoOpening * m_aspect * m_zoomFactor, 
+                                                -m_orthoOpening * m_zoomFactor, 
+                                                 m_orthoOpening * m_zoomFactor, 
+                                                 m_nearPlane, 
+                                                 m_farPlane);
+            }                
             else
                 std::cerr << "[WARNING] Camera::initProjectionMatrix(): projection type shuld be either 0 (perspective) or 1 (orthogonal):" << std::endl;
         }
@@ -292,7 +306,14 @@ namespace GLtools
         */
         void initViewMatrix(glm::vec3 _camCoords, glm::vec3 _centerCoords)
         {
-            m_viewMatrix = glm::lookAt(_camCoords, _centerCoords, glm::vec3(0, 1, 0));
+            //m_viewMatrix = glm::lookAt(_camCoords, _centerCoords, glm::vec3(0, 1, 0));
+            // define up direction vector
+            glm::vec3 upVec = glm::vec3(0, 1, 0);
+            // avoid up vector and cam position to be aligned
+            if (_camCoords.x == 0 && _camCoords.z == 0)
+                upVec = glm::vec3(0, 0, 1);
+
+            m_viewMatrix = glm::lookAt(_camCoords, _centerCoords, upVec);
         }
 
 
@@ -313,13 +334,13 @@ namespace GLtools
         * \fn getZoomFactor
         * \brief ZoomFactor getter
         */
-        float getZoomFactor() const { return m_zoomFactor; }
+        //float getZoomFactor() const { return m_zoomFactor; }
 
         /*!
         * \fn setZoomFactor
         * \brief ZoomFactor setter
         */
-        void setZoomFactor(const float _zoomFactor) { m_zoomFactor = _zoomFactor; }
+        //void setZoomFactor(const float _zoomFactor) { m_zoomFactor = _zoomFactor; }
 
 
     }; // end class Camera
@@ -409,7 +430,41 @@ namespace GLtools
             std::ostream& lastGLerror()
             {
                 #ifdef USE_OPENGL
-                    return std::cerr << "[OPENGL ERROR] " << logLocation(m_location) << logMsg( glGetError() );
+                auto error = glGetError();
+
+                switch (error)
+                {
+                    case GL_NO_ERROR:
+                        if(m_severity == INFO)
+                            return std::cout << "[info] " << logMsg("GL no error");
+                        else
+                            return std::cout << "";
+                        break;
+                    case GL_INVALID_ENUM:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL invalid enum");
+                        break;
+                    case GL_INVALID_VALUE:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL invalid value");
+                        break;
+                    case GL_INVALID_OPERATION:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL invalid operation");
+                        break;
+                    case GL_INVALID_FRAMEBUFFER_OPERATION:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL invalid framebuffer operation");
+                        break;
+                    case GL_OUT_OF_MEMORY:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL out of memory");
+                        break;
+                    case GL_STACK_UNDERFLOW:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL stack underflow");
+                        break;
+                    case GL_STACK_OVERFLOW:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL stack overflow");
+                        break;
+                    default:
+                        return std::cerr << "[ERROR] " << logLocation(m_location) << logMsg("GL unknown error");
+                        break;
+                }
                 #endif
 
                 #ifdef USE_CUDA
