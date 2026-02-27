@@ -3,6 +3,7 @@ Base code for a Vulkan project
 
 Based on: https://vulkan-tutorial.com
 
+![img](img.png)
 
 ## Compilation
 
