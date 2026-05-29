@@ -50,6 +50,43 @@ namespace VulkanDemo
 
 
     /*
+     * Structure to store particles as vertices
+     */
+    struct Particle
+    {
+        alignas(16) glm::vec3 position;
+        alignas(16) glm::vec3 velocity;
+        alignas(16) glm::vec4 color;
+
+        static VkVertexInputBindingDescription getBindingDescription() 
+        {
+            VkVertexInputBindingDescription bindingDescription{};
+            bindingDescription.binding = 0;
+            bindingDescription.stride = sizeof(Particle);
+            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+            return bindingDescription;
+        }
+
+        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() 
+        {
+            std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+            attributeDescriptions.at(0).binding = 0;
+            attributeDescriptions.at(0).location = 0;
+            attributeDescriptions.at(0).format = VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions.at(0).offset = offsetof(Particle, position);
+
+            attributeDescriptions.at(1).binding = 0;
+            attributeDescriptions.at(1).location = 1;
+            attributeDescriptions.at(1).format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            attributeDescriptions.at(1).offset = offsetof(Particle, color);
+
+            return attributeDescriptions;
+        }
+    };
+
+    /*
      * Structure to store data associated with vertex processing (i.e., MVP matrices and other uniforms)
      */
     struct UniformBufferObject 
@@ -58,6 +95,14 @@ namespace VulkanDemo
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 proj;
         alignas(16) glm::vec3 lightPos;
+    };
+
+    /*
+     * Structure to store data associated with compute shader
+     */
+    struct ComputeUniformBufferObject 
+    {
+        float deltaTime = 1.0f;
     };
 
 
@@ -196,13 +241,13 @@ namespace VulkanDemo
     struct QueueFamilyIndices
     {
         // std::optional is a wrapper that contains no value until you assign something to it
-        std::optional<uint32_t> graphicsFamily; // queue families supporting drawing commands
+        std::optional<uint32_t> graphicsAndComputeFamily; // queue families supporting drawing and compute commands
         std::optional<uint32_t> presentFamily;  // queue families supporting presentation 
 
         bool isComplete()
         {
-            // check if graphicsFamily and presentFamily have a value
-            return graphicsFamily.has_value() && presentFamily.has_value();
+            // check if graphicsAndComputeFamily and presentFamily have a value
+            return graphicsAndComputeFamily.has_value() && presentFamily.has_value();
         }
     };
 
@@ -365,9 +410,9 @@ namespace VulkanDemo
         int i = 0;
         for (const auto& queueFamily : queueFamilies)
         {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
             {
-                indices.graphicsFamily = i;
+                indices.graphicsAndComputeFamily = i;
                 //break; // early exit
             }
 

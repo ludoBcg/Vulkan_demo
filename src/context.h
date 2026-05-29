@@ -32,13 +32,15 @@ public:
     Context(Context const& _other) = default;
 
     Context(VkInstance _instance,  VkDebugUtilsMessengerEXT _debugMessenger,
-           VkPhysicalDevice _physicalDevice, VkDevice _device, VkCommandPool _commandPool,
-           VkQueue _graphicsQueue, VkQueue _presentQueue, VkSurfaceKHR _surface)
+            VkPhysicalDevice _physicalDevice, VkDevice _device, VkCommandPool _commandPool,
+            VkQueue _graphicsQueue, VkQueue _computeQueue, VkQueue _presentQueue,
+            VkSurfaceKHR _surface)
         : m_instance(_instance)
         , m_debugMessenger(_debugMessenger)
         , m_physicalDevice(_physicalDevice)
         , m_device(_device)                  
         , m_graphicsQueue(_graphicsQueue)
+        , m_computeQueue(_computeQueue)
         , m_presentQueue(_presentQueue)
         , m_commandPool(_commandPool)
         , m_surface(_surface)
@@ -51,6 +53,7 @@ public:
         m_physicalDevice = _other.m_physicalDevice;
         m_device = _other.m_device;                                 
         m_graphicsQueue = _other.m_graphicsQueue;
+        m_computeQueue = _other.m_computeQueue;
         m_presentQueue = _other.m_presentQueue;
         m_commandPool = _other.m_commandPool;
         m_surface = _other.m_surface;
@@ -63,6 +66,7 @@ public:
         , m_physicalDevice(_other.m_physicalDevice)
         , m_device(_other.m_device)                  
         , m_graphicsQueue(_other.m_graphicsQueue)
+        , m_computeQueue(_other.m_computeQueue)
         , m_presentQueue(_other.m_presentQueue)
         , m_commandPool(_other.m_commandPool)
         , m_surface(_other.m_surface)
@@ -75,6 +79,7 @@ public:
         m_physicalDevice = _other.m_physicalDevice;
         m_device = _other.m_device;                                 
         m_graphicsQueue = _other.m_graphicsQueue;
+        m_computeQueue = _other.m_computeQueue;
         m_presentQueue = _other.m_presentQueue;
         m_commandPool = _other.m_commandPool;
         m_surface = _other.m_surface;
@@ -89,6 +94,7 @@ public:
     VkPhysicalDevice const& getPhysicalDevice() const { return m_physicalDevice; }
     VkDevice const& getDevice() const { return m_device; }
     VkQueue const& getGraphicsQueue() const { return m_graphicsQueue; }
+    VkQueue const& getComputeQueue() const { return m_computeQueue; }
     VkQueue const& getPresentQueue() const { return m_presentQueue; }
     VkCommandPool const& getCommandPool() const { return m_commandPool; }
     VkSurfaceKHR const& getSurface() const { return m_surface; }
@@ -109,6 +115,7 @@ protected:
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE; // the graphic device
     VkDevice m_device;                                  // logical device handle (i.e., similar to OpenGL context)
     VkQueue m_graphicsQueue;                            // graphics queue handle
+    VkQueue m_computeQueue;                             // compute queue handle
     VkQueue m_presentQueue;                             // presentation queue handle
     VkCommandPool m_commandPool;                        // command pool handle
     VkSurfaceKHR m_surface;                             // abstract type of surface to present rendered images to
