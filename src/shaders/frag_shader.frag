@@ -1,3 +1,15 @@
+/*********************************************************************************************************************
+ *
+ * frag_shader.frag
+ *
+ * Fragment shader for mesh rendering
+ *
+ * Vulkan_demo
+ * Ludovic Blache
+ *
+ *********************************************************************************************************************/
+
+
 #version 450
 
 layout(location = 0) in vec3 fragColor;
@@ -18,5 +30,6 @@ void main()
     vec4 amb = outColor * 0.05; // ambient color
     vec4 diff = outColor * max(0.0, dot(fragNormal, fragLightDir)); // diffuse color
     outColor = amb + diff;
+
     outColor.a = 1.0;
 }
