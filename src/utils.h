@@ -68,21 +68,19 @@ namespace VulkanDemo
             return bindingDescription;
         }
 
-        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() 
+        static void getAttributeDescriptions(std::vector<VkVertexInputAttributeDescription>& _attributeDescriptions) 
         {
-            std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+            _attributeDescriptions.resize(2);
 
-            attributeDescriptions.at(0).binding = 0;
-            attributeDescriptions.at(0).location = 0;
-            attributeDescriptions.at(0).format = VK_FORMAT_R32G32B32_SFLOAT;
-            attributeDescriptions.at(0).offset = offsetof(Particle, position);
+            _attributeDescriptions.at(0).binding = 0;
+            _attributeDescriptions.at(0).location = 0;
+            _attributeDescriptions.at(0).format = VK_FORMAT_R32G32B32_SFLOAT;
+            _attributeDescriptions.at(0).offset = offsetof(Particle, position);
 
-            attributeDescriptions.at(1).binding = 0;
-            attributeDescriptions.at(1).location = 1;
-            attributeDescriptions.at(1).format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            attributeDescriptions.at(1).offset = offsetof(Particle, color);
-
-            return attributeDescriptions;
+            _attributeDescriptions.at(1).binding = 0;
+            _attributeDescriptions.at(1).location = 1;
+            _attributeDescriptions.at(1).format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            _attributeDescriptions.at(1).offset = offsetof(Particle, color);
         }
     };
 
@@ -284,6 +282,119 @@ namespace VulkanDemo
 
 
     /*
+     * Looks for all the queue families we need
+     */
+    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice _device, VkSurfaceKHR _surface)
+    {
+        QueueFamilyIndices indices;
+        // Assign index to queue families that could be found
+
+        // get nb of queue families available
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, nullptr);
+
+        // retrieve them and store them in a vector
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, queueFamilies.data());
+
+
+        // We need to find at least one queue family that supports VK_QUEUE_GRAPHICS_BIT
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies)
+        {
+            if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+            {
+                indices.graphicsAndComputeFamily = i;
+                //break; // early exit
+            }
+
+            // look for a queue family that has the capability of presenting to our window surface
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(_device, i, _surface, &presentSupport);
+
+            if (presentSupport)
+            {
+                indices.presentFamily = i;
+            }
+
+            if (indices.isComplete()) {
+                break;
+            }
+
+            i++;
+        }
+
+        return indices;
+    }
+
+
+    /*
+     * Populates SwapChainSupportDetails struct
+     */
+    inline SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice _device, VkSurfaceKHR _surface) 
+    {
+        SwapChainSupportDetails details;
+
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_device, _surface, &details.capabilities);
+
+        uint32_t formatCount;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(_device, _surface, &formatCount, nullptr);
+
+        if (formatCount != 0) 
+        {
+            details.formats.resize(formatCount);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(_device, _surface, &formatCount, details.formats.data());
+        }
+
+        uint32_t presentModeCount;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(_device, _surface, &presentModeCount, nullptr);
+
+        if (presentModeCount != 0) 
+        {
+            details.presentModes.resize(presentModeCount);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(_device, _surface, &presentModeCount, details.presentModes.data());
+        }
+
+        return details;
+    }
+
+
+    /*
+     * Checks if any of the physical devices meet the requirements
+     */
+    inline bool isDeviceSuitable(VkPhysicalDevice _device, VkSurfaceKHR _surface)
+    {
+        // query basic device properties
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(_device, &deviceProperties);
+
+        // query support for optional features
+        VkPhysicalDeviceFeatures supportedFeatures;
+        vkGetPhysicalDeviceFeatures(_device, &supportedFeatures);
+
+        QueueFamilyIndices indices = findQueueFamilies(_device, _surface);
+
+        // check if the device supports the extensions required
+        bool extensionsSupported = checkDeviceExtensionSupport(_device);
+
+        bool swapChainAdequate = false;
+        if (extensionsSupported) 
+        {
+            SwapChainSupportDetails swapChainSupport = querySwapChainSupport(_device, _surface);
+            swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+        }
+
+
+        return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && // we only want discrete GPUs
+               supportedFeatures.geometryShader && // we only want GPUs which support geom shaders
+               indices.isComplete() &&
+               extensionsSupported &&
+               swapChainAdequate &&
+               supportedFeatures.samplerAnisotropy;
+    }
+
+
+    /*
     * Helper function for command buffer allocation
     */
     inline VkCommandBuffer beginSingleTimeCommands(VkDevice _device, VkCommandPool _commandPool)
@@ -325,6 +436,25 @@ namespace VulkanDemo
         vkFreeCommandBuffers(_device, _commandPool, 1, &_commandBuffer);
     }
 
+
+    /*
+    * Helper function for creation of shader modules
+    */
+    inline VkShaderModule createShaderModule(VkDevice _device, const std::vector<char>& _code)
+    {
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = _code.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(_code.data());
+
+        VkShaderModule shaderModule;
+        if (vkCreateShaderModule(_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) 
+        {
+            throw std::runtime_error("failed to create shader module!");
+        }
+
+        return shaderModule;
+    }
 
 
     /*
@@ -387,54 +517,6 @@ namespace VulkanDemo
     {
         return _format == VK_FORMAT_D32_SFLOAT_S8_UINT || _format == VK_FORMAT_D24_UNORM_S8_UINT;
     }
-
-
-    /*
-     * Looks for all the queue families we need
-     */
-    inline QueueFamilyIndices findQueueFamilies(VkPhysicalDevice _device, VkSurfaceKHR _surface)
-    {
-        QueueFamilyIndices indices;
-        // Assign index to queue families that could be found
-
-        // get nb of queue families available
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, nullptr);
-
-        // retrieve them and store them in a vector
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, queueFamilies.data());
-
-
-        // We need to find at least one queue family that supports VK_QUEUE_GRAPHICS_BIT
-        int i = 0;
-        for (const auto& queueFamily : queueFamilies)
-        {
-            if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
-            {
-                indices.graphicsAndComputeFamily = i;
-                //break; // early exit
-            }
-
-            // look for a queue family that has the capability of presenting to our window surface
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(_device, i, _surface, &presentSupport);
-
-            if (presentSupport)
-            {
-                indices.presentFamily = i;
-            }
-
-            if (indices.isComplete()) {
-                break;
-            }
-
-            i++;
-        }
-
-        return indices;
-    }
-
 
 
 } // namespace VulkanDemo

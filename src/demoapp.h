@@ -21,6 +21,7 @@
 #include "context.h"
 #include "mesh.h"
 #include "image.h"
+#include "pipeline.h"
 
 
 namespace VulkanDemo
@@ -53,12 +54,13 @@ private:
     VkFormat m_swapChainImageFormat;                    // format chosen for the swap chain images
     VkExtent2D m_swapChainExtent;                       // extent chosen for the swap chain images
     std::vector<VkImageView> m_swapChainImageViews;     // image views
-    VkRenderPass m_renderPass;                          // the render pipeline
     VkDescriptorSetLayout m_descriptorSetLayout;        // defines uniforms
-    VkPipelineLayout m_pipelineLayout;                  // defines uniforms
-    VkPipeline m_graphicsPipeline;                      // final graphics pipeline
     std::vector<VkFramebuffer> m_swapChainFramebuffers; // framebuffers
     VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT; // nb of samples per pixel
+
+    Pipeline m_graphicsPipeline;    // render and graphics pipeline
+    bool m_useDepthBuffer = true;
+    bool m_useColorAttachmentResolve = true;
 
     // images
     Image m_textureImage;   // texture
@@ -109,7 +111,7 @@ private:
     void createImageViews();
     void createRenderPass();
     void createDescriptorSetLayout();
-    void createGraphicsPipeline();
+    void createPipelines();
     void createFramebuffers();
     void createDepthResources();
     void createColorResources();
@@ -119,11 +121,6 @@ private:
     void createCommandBuffers();
     void createSyncObjects();
 
-
-    // used in pickPhysicalDevice()
-    bool isDeviceSuitable(VkPhysicalDevice _device);
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice _device);
-
     // used in createSwapChain()
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& _availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& _availablePresentModes);
@@ -131,9 +128,6 @@ private:
 
     // used in createImageViews()
     VkImageView createImageView(VkImage _image, VkFormat _format, VkImageAspectFlags _aspectFlags, uint32_t _mipLevels);
-
-    // used in createGraphicsPipeline()
-    VkShaderModule createShaderModule(const std::vector<char>& _code);
 
     // used in createDepthResources()
     VkFormat findSupportedFormat(const std::vector<VkFormat>& _candidates, VkImageTiling _tiling, VkFormatFeatureFlags _features);

@@ -13,6 +13,7 @@ set(SRCS
 	src/context.cpp
 	src/mesh.cpp
 	src/image.cpp
+	src/pipeline.cpp
 	src/demoapp.cpp
     )
     
@@ -21,6 +22,7 @@ set(HEADERS
 	src/context.h
 	src/mesh.h
 	src/image.h
+	src/pipeline.h
 	src/demoapp.h
     )
 

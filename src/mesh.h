@@ -59,35 +59,33 @@ struct Vertex
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() 
+    static void getAttributeDescriptions(std::vector<VkVertexInputAttributeDescription>& _attributeDescriptions) 
     {
-        std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
+        _attributeDescriptions.resize(4);
 
         // Attribute description for position
-        attributeDescriptions.at(0).binding = 0;
-        attributeDescriptions.at(0).location = 0;
-        attributeDescriptions.at(0).format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions.at(0).offset = offsetof(Vertex, pos);
+        _attributeDescriptions.at(0).binding = 0;
+        _attributeDescriptions.at(0).location = 0;
+        _attributeDescriptions.at(0).format = VK_FORMAT_R32G32B32_SFLOAT;
+        _attributeDescriptions.at(0).offset = offsetof(Vertex, pos);
 
         // Attribute description for color
-        attributeDescriptions.at(1).binding = 0;
-        attributeDescriptions.at(1).location = 1;
-        attributeDescriptions.at(1).format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions.at(1).offset = offsetof(Vertex, color);
+        _attributeDescriptions.at(1).binding = 0;
+        _attributeDescriptions.at(1).location = 1;
+        _attributeDescriptions.at(1).format = VK_FORMAT_R32G32B32_SFLOAT;
+        _attributeDescriptions.at(1).offset = offsetof(Vertex, color);
 
         // Attribute description for UVs
-        attributeDescriptions.at(2).binding = 0;
-        attributeDescriptions.at(2).location = 2;
-        attributeDescriptions.at(2).format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions.at(2).offset = offsetof(Vertex, texCoord);
+        _attributeDescriptions.at(2).binding = 0;
+        _attributeDescriptions.at(2).location = 2;
+        _attributeDescriptions.at(2).format = VK_FORMAT_R32G32_SFLOAT;
+        _attributeDescriptions.at(2).offset = offsetof(Vertex, texCoord);
 
         // Attribute description for normals
-        attributeDescriptions.at(3).binding = 0;
-        attributeDescriptions.at(3).location = 3;
-        attributeDescriptions.at(3).format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions.at(3).offset = offsetof(Vertex, normal);
-
-        return attributeDescriptions;
+        _attributeDescriptions.at(3).binding = 0;
+        _attributeDescriptions.at(3).location = 3;
+        _attributeDescriptions.at(3).format = VK_FORMAT_R32G32B32_SFLOAT;
+        _attributeDescriptions.at(3).offset = offsetof(Vertex, normal);
     }
 
 };
