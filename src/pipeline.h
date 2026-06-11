@@ -74,12 +74,11 @@ public:
     //VK_CULL_MODE_FRONT_AND_BACK = 3,
     //see https://docs.vulkan.org/refpages/latest/refpages/source/VkCullModeFlagBits.html
     void createGraphicsPipeline(VkDevice _device,
-                                VkShaderModule _vertShaderModule, VkShaderModule _fragShaderModule,
-                                VkVertexInputBindingDescription _bindingDescription,
-                                VkDescriptorSetLayout _descriptorSetLayout,
-                                std::vector<VkVertexInputAttributeDescription>& _attributeDescriptions,
-                                bool _useDepthBuffer, VkSampleCountFlagBits _sampleCount, 
-                                unsigned int _polygonMode,  unsigned int _topology, unsigned int _cullMode);
+                                      VkShaderModule _vertShaderModule, VkShaderModule _fragShaderModule,
+                                      VkPipelineVertexInputStateCreateInfo _vertexInputInfo,
+                                      VkDescriptorSetLayout _descriptorSetLayout,
+                                      bool _useDepthBuffer, VkSampleCountFlagBits _sampleCount,
+                                      unsigned int _polygoneMode, unsigned int _topology, unsigned int _cullMode);
 
     void createComputePipeline( VkDevice _device,
                                 VkShaderModule _compShaderModule,

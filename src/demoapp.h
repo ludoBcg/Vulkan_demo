@@ -31,6 +31,7 @@ namespace VulkanDemo
 class DemoApp
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
+    const uint32_t PARTICLE_COUNT  = 256 /*8192*/;
 
 public:
 
@@ -54,13 +55,13 @@ private:
     VkFormat m_swapChainImageFormat;                    // format chosen for the swap chain images
     VkExtent2D m_swapChainExtent;                       // extent chosen for the swap chain images
     std::vector<VkImageView> m_swapChainImageViews;     // image views
-    VkDescriptorSetLayout m_descriptorSetLayout;        // defines uniforms
     std::vector<VkFramebuffer> m_swapChainFramebuffers; // framebuffers
     VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT; // nb of samples per pixel
 
     Pipeline m_graphicsPipeline;    // render and graphics pipeline
     bool m_useDepthBuffer = true;
     bool m_useColorAttachmentResolve = true;
+    Pipeline m_computePipeline;     // compute shader pipeline
 
     // images
     Image m_textureImage;   // texture
@@ -93,10 +94,14 @@ private:
     std::vector<VkBuffer> m_uniformBuffers;
     std::vector<VkDeviceMemory> m_uniformBuffersMemory;
     std::vector<void*> m_uniformBuffersMapped;
+ 
 
     // Descriptors (i.e., uniforms)
+    VkDescriptorSetLayout m_graphicsDescriptorSetLayout; // graphics pipeline descriptors
+    VkDescriptorSetLayout m_computeDescriptorSetLayout;  // compute pipeline descriptors
     VkDescriptorPool m_descriptorPool;
-    std::vector<VkDescriptorSet>  m_descriptorSets;
+    std::vector<VkDescriptorSet>  m_graphicsDescriptorSets;
+    std::vector<VkDescriptorSet>  m_computeDescriptorSets;
 
     // main steps of run()
     void initWindow();
@@ -110,7 +115,7 @@ private:
     void createSwapChain();
     void createImageViews();
     void createRenderPass();
-    void createDescriptorSetLayout();
+    void createDescriptorSetLayouts();
     void createPipelines();
     void createFramebuffers();
     void createDepthResources();
@@ -137,7 +142,8 @@ private:
     void drawFrame();
 
     // used in drawFrame()
-    void recordCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);
+    void recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);
+    void recordComputeCommandBuffer(VkCommandBuffer _commandBuffer);
     void cleanupSwapChain();
     void recreateSwapChain();
     void updateUniformBuffer(uint32_t _currentImage);

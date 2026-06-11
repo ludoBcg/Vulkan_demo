@@ -127,9 +127,8 @@ void Pipeline::createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat
 
 void Pipeline::createGraphicsPipeline(VkDevice _device,
                                       VkShaderModule _vertShaderModule, VkShaderModule _fragShaderModule,
-                                      VkVertexInputBindingDescription _bindingDescription,
+                                      VkPipelineVertexInputStateCreateInfo _vertexInputInfo,
                                       VkDescriptorSetLayout _descriptorSetLayout,
-                                      std::vector<VkVertexInputAttributeDescription>& _attributeDescriptions,
                                       bool _useDepthBuffer, VkSampleCountFlagBits _sampleCount,
                                       unsigned int _polygoneMode, unsigned int _topology, unsigned int _cullMode)
 {
@@ -146,14 +145,6 @@ void Pipeline::createGraphicsPipeline(VkDevice _device,
     fragShaderStageInfo.pName = "main";
 
     std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = { vertShaderStageInfo, fragShaderStageInfo };
-
-    // describes the format of the vertex data that will be passed to the vertex shader
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(_attributeDescriptions.size());
-    vertexInputInfo.pVertexBindingDescriptions = &_bindingDescription;
-    vertexInputInfo.pVertexAttributeDescriptions = _attributeDescriptions.data();
 
 
     // Describes what kind of geometry will be drawn from the vertices and if primitive restart should be enabled.
@@ -281,7 +272,7 @@ void Pipeline::createGraphicsPipeline(VkDevice _device,
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
     pipelineInfo.pStages = shaderStages.data();
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pVertexInputState = &_vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;
