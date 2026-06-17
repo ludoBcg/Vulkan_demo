@@ -15,6 +15,7 @@
 #include <algorithm> // Necessary for std::clamp
 #include <chrono>
 #include <unordered_map>
+#include <random>
 
 #include "demoapp.h"
 
@@ -79,6 +80,7 @@ void DemoApp::initVulkan()
     createColorResources();
     createDepthResources();
     createFramebuffers();
+    createComputeShaderStorageBuffers();
     m_textureImage.createTextureImage(*m_contextPtr);
     m_textureImage.createTextureImageView(*m_contextPtr);
     m_textureImage.createTextureSampler(*m_contextPtr);
@@ -86,7 +88,7 @@ void DemoApp::initVulkan()
     m_mesh.createVertexBuffer(*m_contextPtr);
     m_mesh.createIndexBuffer(*m_contextPtr);
     createUniformBuffers();
-    createDescriptorPool();
+    createDescriptorPools();
     createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
@@ -111,6 +113,8 @@ void DemoApp::initUBO()
     m_ubo.proj = m_camera.getProjectionMatrix();
     m_ubo.proj[1][1] *= -1;
     m_ubo.lightPos = glm::vec3(2.0f, 2.0f, 0.0f); // light source position in view space
+
+    m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
 }
 
 
@@ -125,6 +129,8 @@ void DemoApp::mainLoop()
         glfwPollEvents();
 
         drawFrame();
+        //drawFrame_particles();
+
     }
 
     vkDeviceWaitIdle(m_contextPtr->getDevice());
@@ -145,22 +151,24 @@ void DemoApp::cleanup()
     {
         vkDestroyBuffer(m_contextPtr->getDevice(), m_uniformBuffers.at(i), nullptr);
         vkFreeMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory.at(i), nullptr);
-    }
 
-    vkDestroyDescriptorPool(m_contextPtr->getDevice(), m_descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_contextPtr->getDevice(), m_graphicsDescriptorSetLayout, nullptr);
-    vkDestroyDescriptorSetLayout(m_contextPtr->getDevice(), m_computeDescriptorSetLayout, nullptr);
+        vkDestroyBuffer(m_contextPtr->getDevice(), m_computeShaderStorageBuffers.at(i), nullptr);
+        vkFreeMemory(m_contextPtr->getDevice(), m_computeShaderStorageBuffersMemory.at(i), nullptr);
+    }
 
     m_mesh.cleanup(*m_contextPtr);
 
-    m_graphicsPipeline.destroy(m_contextPtr->getDevice());
-    m_computePipeline.destroy(m_contextPtr->getDevice());
+    m_graphicsPipeline.destroy(m_contextPtr->getDevice(), m_contextPtr->getCommandPool());
+    m_graphicsPipeline_particles.destroy(m_contextPtr->getDevice(), m_contextPtr->getCommandPool());
+    m_computePipeline.destroy(m_contextPtr->getDevice(), m_contextPtr->getCommandPool());
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
     {
         vkDestroySemaphore(m_contextPtr->getDevice(), m_imageAvailableSemaphores.at(i), nullptr);
         vkDestroySemaphore(m_contextPtr->getDevice(), m_renderFinishedSemaphores.at(i), nullptr);
+        vkDestroySemaphore(m_contextPtr->getDevice(), m_computeFinishedSemaphores.at(i), nullptr);
         vkDestroyFence(m_contextPtr->getDevice(), m_inFlightFences.at(i), nullptr);
+        vkDestroyFence(m_contextPtr->getDevice(), m_computeInFlightFences.at(i), nullptr);
     }
 
     // Command buffers are automatically freed when their command pool is destroyed
@@ -320,7 +328,7 @@ void DemoApp::createSwapChain()
     if (indices.graphicsAndComputeFamily != indices.presentFamily) 
     {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        createInfo.queueFamilyIndexCount = 2;
+        createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
         createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
     }
     else 
@@ -334,7 +342,6 @@ void DemoApp::createSwapChain()
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
-
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
     if (vkCreateSwapchainKHR(m_contextPtr->getDevice(), &createInfo, nullptr, &m_swapChain) != VK_SUCCESS) 
@@ -403,6 +410,8 @@ void DemoApp::createImageViews()
 void DemoApp::createRenderPass()
 {
     m_graphicsPipeline.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, m_msaaSamples, findDepthFormat());
+    m_graphicsPipeline_particles.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, m_msaaSamples, VK_FORMAT_D32_SFLOAT);
+
 
     infoLog() << "createRenderPass(): OK ";
 }
@@ -414,65 +423,10 @@ void DemoApp::createRenderPass()
 void DemoApp::createDescriptorSetLayouts()
 {
     // 1. Graphics pipeline Descriptors
-
-    // UniformBufferObject binding (cf. vertex shader layout(binding = 0) uniform)
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-    // sampler2D (i.e., texture) binding (cf. fragment shader layout(binding = 1) uniform)
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.binding = 1;
-    samplerLayoutBinding.descriptorCount = 1;
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    std::array<VkDescriptorSetLayoutBinding, 2> graphicsBindings = { uboLayoutBinding, samplerLayoutBinding };
-    VkDescriptorSetLayoutCreateInfo graphicsLayoutInfo{};
-    graphicsLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    graphicsLayoutInfo.bindingCount = static_cast<uint32_t>(graphicsBindings.size());
-    graphicsLayoutInfo.pBindings = graphicsBindings.data();
-
-    if (vkCreateDescriptorSetLayout(m_contextPtr->getDevice(), &graphicsLayoutInfo, nullptr, &m_graphicsDescriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
-    }
+    m_graphicsPipeline.createGraphicsDescriptorSetLayout( m_contextPtr->getDevice());
 
     // 2. Compute pipeline Descriptors
-
-    // UniformBufferObject binding (cf. compute shader layout(binding = 0) uniform)
-    std::array<VkDescriptorSetLayoutBinding, 3> layoutBindings{};
-    layoutBindings.at(0).binding = 0;
-    layoutBindings.at(0).descriptorCount = 1;
-    layoutBindings.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBindings.at(0).pImmutableSamplers = nullptr;
-    layoutBindings.at(0).stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    // Shader Storage Buffer Object (SSBO) input binding (cf. compute shader layout(binding = 1) readonly buffer)
-    layoutBindings.at(1).binding = 1;
-    layoutBindings.at(1).descriptorCount = 1;
-    layoutBindings.at(1).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutBindings.at(1).pImmutableSamplers = nullptr;
-    layoutBindings.at(1).stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    //  Shader Storage Buffer Object (SSBO) output binding (cf. compute shader layout(binding = 2) buffer)
-    layoutBindings.at(2).binding = 2;
-    layoutBindings.at(2).descriptorCount = 1;
-    layoutBindings.at(2).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutBindings.at(2).pImmutableSamplers = nullptr;
-    layoutBindings.at(2).stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    VkDescriptorSetLayoutCreateInfo computeLayoutInfo{};
-    computeLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    computeLayoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
-    computeLayoutInfo.pBindings = layoutBindings.data();
-
-    if (vkCreateDescriptorSetLayout(m_contextPtr->getDevice(), &computeLayoutInfo, nullptr, &m_computeDescriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create compute descriptor set layout!");
-    }
+    m_computePipeline.createComputeDescriptorSetLayout( m_contextPtr->getDevice());
 
     infoLog() << "createComputeDescriptorSetLayout(): OK ";
 }
@@ -507,7 +461,7 @@ void DemoApp::createPipelines()
 
     // describes the format of the vertex data that will be passed to the vertex shader
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    auto bindingDescription = Vertex::getBindingDescription();
+    VkVertexInputBindingDescription bindingDescription = Vertex::getBindingDescription();
     std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
     Vertex::getAttributeDescriptions(attributeDescriptions);
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -519,9 +473,35 @@ void DemoApp::createPipelines()
 
     m_graphicsPipeline.createGraphicsPipeline( m_contextPtr->getDevice(),
                                                vertShaderModule, fragShaderModule,
-                                               vertexInputInfo, m_graphicsDescriptorSetLayout,
+                                               vertexInputInfo, /*m_graphicsDescriptorSetLayout,*/
                                                m_useDepthBuffer, m_msaaSamples, 0, 3, 0 );
 
+
+
+    // 2.5. Graphics pipleine particles
+    // create graphics pipeline
+
+    vertShaderCode = GLtools::readFile("../src/shaders/vert_particles.spv");
+    fragShaderCode = GLtools::readFile("../src/shaders/frag_particles.spv");
+
+    vertShaderModule = createShaderModule(m_contextPtr->getDevice(), vertShaderCode);
+    fragShaderModule = createShaderModule(m_contextPtr->getDevice(), fragShaderCode);
+
+    bindingDescription = Particle::getBindingDescription();
+    attributeDescriptions.clear();
+    Particle::getAttributeDescriptions(attributeDescriptions);
+    // describes the format of the vertex data that will be passed to the vertex shader
+    vertexInputInfo = {};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+    m_graphicsPipeline_particles.createGraphicsPipeline( m_contextPtr->getDevice(),
+                                               vertShaderModule, fragShaderModule,
+                                               vertexInputInfo,/* nullptr,*/
+                                               m_useDepthBuffer, m_msaaSamples, 0, 0, 2 );
 
     // 2. Compute pipeline
     
@@ -530,8 +510,8 @@ void DemoApp::createPipelines()
     VkShaderModule computeShaderModule = createShaderModule(m_contextPtr->getDevice(), computeShaderCode);
 
     m_computePipeline.createComputePipeline(m_contextPtr->getDevice(),
-                                            computeShaderModule,
-                                            m_computeDescriptorSetLayout );
+                                            computeShaderModule/*,
+                                            m_computeDescriptorSetLayout*/ );
 
     infoLog() << "createPipelines(): OK ";
 }
@@ -595,7 +575,7 @@ void DemoApp::createDepthResources()
     m_depthImage.createImageView(*m_contextPtr, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 
     m_depthImage.transitionImageLayout(*m_contextPtr, depthFormat,
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                                       VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 
@@ -677,36 +657,30 @@ void DemoApp::createUniformBuffers()
 /*
  * Descriptors allocation from a pool
  */
-void DemoApp::createDescriptorPool() 
+void DemoApp::createDescriptorPools() 
 {
-    // Two descriptors: uniforms and sampler
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
-    poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes.at(0).descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    poolSizes.at(1).type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes.at(1).descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    // 1. Graphics descriptor pool
+    m_graphicsPipeline.createComputeDescriptorPools(m_contextPtr->getDevice(), static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT));
 
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-    poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    // 2. Compute descriptor pool
+    m_computePipeline.createComputeDescriptorPools(m_contextPtr->getDevice(), static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT));
 
-    if (vkCreateDescriptorPool(m_contextPtr->getDevice(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor pool!");
-    }
+
+    infoLog() << "createDescriptorPools(): OK ";
 }
 
 
 /*
- * Allocates the descriptor sets for graphics pipeline
+ * Allocates the descriptor sets for graphics and compute pipelines
  */
 void DemoApp::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_graphicsDescriptorSetLayout);
+    // 1. Descriptor sets for graphics pipeline
+
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_graphicsPipeline.getDescriptorSetLayout());
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorPool = m_graphicsPipeline.getDescriptorPool();
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     allocInfo.pSetLayouts = layouts.data();
 
@@ -748,28 +722,85 @@ void DemoApp::createDescriptorSets()
 
         vkUpdateDescriptorSets(m_contextPtr->getDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
+
+    // 2. Descriptor sets for compute pipeline
+    {
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_computePipeline.getDescriptorSetLayout()/*m_computeDescriptorSetLayout*/);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_computePipeline.getDescriptorPool() /*m_computeDescriptorPool*/;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.pSetLayouts = layouts.data();
+
+        m_computeDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(m_contextPtr->getDevice(), &allocInfo, m_computeDescriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+        {
+            VkDescriptorBufferInfo uniformBufferInfo{};
+            uniformBufferInfo.buffer = m_uniformBuffers.at(i);
+            uniformBufferInfo.offset = 0;
+            uniformBufferInfo.range = sizeof(UniformBufferObject);
+
+            std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+
+            descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites.at(0).dstSet = m_computeDescriptorSets.at(i);
+            descriptorWrites.at(0).dstBinding = 0;
+            descriptorWrites.at(0).dstArrayElement = 0;
+            descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites.at(0).descriptorCount = 1;
+            descriptorWrites.at(0).pBufferInfo = &uniformBufferInfo;
+
+            VkDescriptorBufferInfo storageBufferInfoLastFrame{};
+            storageBufferInfoLastFrame.buffer = m_computeShaderStorageBuffers.at((i - 1) % MAX_FRAMES_IN_FLIGHT);
+            storageBufferInfoLastFrame.offset = 0;
+            storageBufferInfoLastFrame.range = sizeof(Particle) * PARTICLE_COUNT;
+
+            descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites.at(1).dstSet = m_computeDescriptorSets.at(i);
+            descriptorWrites.at(1).dstBinding = 1;
+            descriptorWrites.at(1).dstArrayElement = 0;
+            descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites.at(1).descriptorCount = 1;
+            descriptorWrites.at(1).pBufferInfo = &storageBufferInfoLastFrame;
+
+            VkDescriptorBufferInfo storageBufferInfoCurrentFrame{};
+            storageBufferInfoCurrentFrame.buffer = m_computeShaderStorageBuffers.at(i);
+            storageBufferInfoCurrentFrame.offset = 0;
+            storageBufferInfoCurrentFrame.range = sizeof(Particle) * PARTICLE_COUNT;
+
+            descriptorWrites.at(2).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites.at(2).dstSet = m_computeDescriptorSets.at(i);
+            descriptorWrites.at(2).dstBinding = 2;
+            descriptorWrites.at(2).dstArrayElement = 0;
+            descriptorWrites.at(2).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites.at(2).descriptorCount = 1;
+            descriptorWrites.at(2).pBufferInfo = &storageBufferInfoCurrentFrame;
+
+            vkUpdateDescriptorSets(m_contextPtr->getDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        }
+    }
 }
 
 
 /*
- * Creation of command buffer
+ * Creation of command buffers
  */
 void DemoApp::createCommandBuffers()
 {
-    m_commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    //1. Graphics pipeline Command Buffer for Mesh
+    m_graphicsPipeline.createCommandBuffers(m_contextPtr->getDevice(), m_contextPtr->getCommandPool(), MAX_FRAMES_IN_FLIGHT);
 
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_contextPtr->getCommandPool();
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-    allocInfo.commandBufferCount = (uint32_t)m_commandBuffers.size();
+    // 1.5. Graphics pipeline Command Buffer particles
+    m_graphicsPipeline_particles.createCommandBuffers(m_contextPtr->getDevice(), m_contextPtr->getCommandPool(), MAX_FRAMES_IN_FLIGHT);
+   
+    // 2. Compute pipeline Command Buffer particles
+    m_computePipeline.createCommandBuffers(m_contextPtr->getDevice(), m_contextPtr->getCommandPool(), MAX_FRAMES_IN_FLIGHT);
 
-    if (vkAllocateCommandBuffers(m_contextPtr->getDevice(), &allocInfo, m_commandBuffers.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate command buffers!");
-    }
-
-    infoLog() << "createCommandBuffer(): OK ";
+    infoLog() << "createCommandBuffers(): OK ";
 }
 
 
@@ -855,6 +886,8 @@ void DemoApp::recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32
  */
 void DemoApp::recordComputeCommandBuffer(VkCommandBuffer _commandBuffer)
 {
+    vkResetCommandBuffer(_commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -881,7 +914,9 @@ void DemoApp::createSyncObjects()
 {
     m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    m_computeFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    m_computeInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -898,6 +933,11 @@ void DemoApp::createSyncObjects()
         {
             throw std::runtime_error("failed to create semaphores!");
         }
+        if (vkCreateSemaphore(m_contextPtr->getDevice(), &semaphoreInfo, nullptr, &m_computeFinishedSemaphores.at(i)) != VK_SUCCESS ||
+            vkCreateFence(m_contextPtr->getDevice(), &fenceInfo, nullptr, &m_computeInFlightFences.at(i)) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create compute synchronization objects for a frame!");
+        }
     }
 
     infoLog() << "createSyncObjects(): OK ";
@@ -909,7 +949,30 @@ void DemoApp::createSyncObjects()
  */
 void DemoApp::drawFrame()
 {
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
+    // 1. Compute submission        
+    vkWaitForFences(m_contextPtr->getDevice(), 1, &m_computeInFlightFences.at(m_currentFrame), VK_TRUE, UINT64_MAX);
+
+    updateUniformBuffer_particles(m_currentFrame);
+
+    vkResetFences(m_contextPtr->getDevice(), 1, &m_computeInFlightFences.at(m_currentFrame));
+
+    recordComputeCommandBuffer(m_computePipeline.getCommandBuffers().at(m_currentFrame));
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_computePipeline.getCommandBuffers().at(m_currentFrame);
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &m_computeFinishedSemaphores.at(m_currentFrame);
+
+    if (vkQueueSubmit(m_contextPtr->getComputeQueue(), 1, &submitInfo, m_computeInFlightFences.at(m_currentFrame)) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to submit compute command buffer!");
+    };
+
+
+    // 2. Graphics submission
     vkWaitForFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame), VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
@@ -930,22 +993,20 @@ void DemoApp::drawFrame()
     // Only reset the fence if we are submitting work
     vkResetFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame));
 
-    vkResetCommandBuffer(m_commandBuffers.at(m_currentFrame), 0);
-    recordGraphicsCommandBuffer(m_commandBuffers.at(m_currentFrame), imageIndex);
+    recordGraphicsCommandBuffer(m_graphicsPipeline.getCommandBuffers().at(m_currentFrame), imageIndex);
 
-    VkSubmitInfo submitInfo{};
+    std::array<VkSemaphore, 2> waitSemaphores = { m_computeFinishedSemaphores.at(m_currentFrame), m_imageAvailableSemaphores.at(m_currentFrame) };
+    std::array<VkPipelineStageFlags, 2> waitStages = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    std::array<VkSemaphore, 1> waitSemaphores = { m_imageAvailableSemaphores.at(m_currentFrame) };
-    std::array<VkPipelineStageFlags, 1> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
     submitInfo.pWaitSemaphores = waitSemaphores.data();
     submitInfo.pWaitDstStageMask = waitStages.data();
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers.at(m_currentFrame);
+    submitInfo.pCommandBuffers = &m_graphicsPipeline.getCommandBuffers().at(m_currentFrame);
 
     std::array<VkSemaphore, 1> signalSemaphores = { m_renderFinishedSemaphores.at(m_currentFrame) };
-    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size());
     submitInfo.pSignalSemaphores = signalSemaphores.data();
 
     if (vkQueueSubmit(m_contextPtr->getGraphicsQueue(), 1, &submitInfo, m_inFlightFences.at(m_currentFrame)) != VK_SUCCESS) {
@@ -975,6 +1036,11 @@ void DemoApp::drawFrame()
 
     // update current frame id
     m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+    // We want to animate the particle system using the last frames time to get smooth, frame-rate independent animation
+    double currentTime = glfwGetTime();
+    m_lastFrameTime = (currentTime - m_lastTime) * 1000.0;
+    m_lastTime = currentTime; 
 }
 
 
@@ -1037,6 +1103,8 @@ void DemoApp::updateUniformBuffer(uint32_t _currentImage)
     //m_initModel = glm::rotate(m_initModel, glm::radians(0.05f), glm::vec3(0.0f, 0.0f, 1.0f));
     m_ubo.model = m_trackball.getRotationMatrix() 
                 * m_initModel;
+
+    m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
 
     memcpy(m_uniformBuffersMapped.at(_currentImage), &m_ubo, sizeof(m_ubo));
 }
@@ -1128,5 +1196,235 @@ VkSampleCountFlagBits DemoApp::getMaxUsableSampleCount()
 
     return VK_SAMPLE_COUNT_1_BIT;
 }
+
+
+void DemoApp::updateUniformBuffer_particles(uint32_t _currentImage) 
+{
+    //m_ubo_particles.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
+    //memcpy(m_uniformBuffersMapped[_currentImage], &m_ubo_particles, sizeof(m_ubo_particles));
+}
+
+void DemoApp::drawFrame_particles()
+{
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    // 1. Compute submission        
+    vkWaitForFences(m_contextPtr->getDevice(), 1, &m_computeInFlightFences.at(m_currentFrame), VK_TRUE, UINT64_MAX);
+
+    updateUniformBuffer_particles(m_currentFrame);
+
+    vkResetFences(m_contextPtr->getDevice(), 1, &m_computeInFlightFences.at(m_currentFrame));
+
+    recordComputeCommandBuffer(m_computePipeline.getCommandBuffers().at(m_currentFrame));
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_computePipeline.getCommandBuffers().at(m_currentFrame);
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &m_computeFinishedSemaphores.at(m_currentFrame);
+
+    if (vkQueueSubmit(m_contextPtr->getComputeQueue(), 1, &submitInfo, m_computeInFlightFences.at(m_currentFrame)) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to submit compute command buffer!");
+    };
+
+
+    // 2. Graphics submission
+    vkWaitForFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame), VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex;
+    VkResult result = vkAcquireNextImageKHR(m_contextPtr->getDevice(), m_swapChain, UINT64_MAX, 
+                                            m_imageAvailableSemaphores.at(m_currentFrame), VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) 
+    {
+        recreateSwapChain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    updateUniformBuffer(m_currentFrame);
+
+    // Only reset the fence if we are submitting work
+    vkResetFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame));
+
+    vkResetCommandBuffer(m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), 0);
+    recordGraphicsCommandBuffer_particles(m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), imageIndex);
+
+    std::array<VkSemaphore, 2> waitSemaphores = { m_computeFinishedSemaphores.at(m_currentFrame), m_imageAvailableSemaphores.at(m_currentFrame) };
+    std::array<VkPipelineStageFlags, 2> waitStages = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.pWaitDstStageMask = waitStages.data();
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame);
+
+    std::array<VkSemaphore, 1> signalSemaphores = { m_renderFinishedSemaphores.at(m_currentFrame) };
+    submitInfo.signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size());
+    submitInfo.pSignalSemaphores = signalSemaphores.data();
+
+    if (vkQueueSubmit(m_contextPtr->getGraphicsQueue(), 1, &submitInfo, m_inFlightFences.at(m_currentFrame)) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores.data();
+    VkSwapchainKHR swapChains[] = { m_swapChain };
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr; // Optional
+
+    result = vkQueuePresentKHR(m_contextPtr->getPresentQueue(), &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebufferResized)
+    {
+        m_framebufferResized = false;
+        recreateSwapChain();
+    }
+    else if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to present swap chain image!");
+    }
+
+    // update current frame id
+    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+    // We want to animate the particle system using the last frames time to get smooth, frame-rate independent animation
+    double currentTime = glfwGetTime();
+    m_lastFrameTime = (currentTime - m_lastTime) * 1000.0;
+    m_lastTime = currentTime; 
+}
+
+
+void DemoApp::createComputeShaderStorageBuffers() 
+{
+    // Initialize particles
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+    // Initial particle positions on a circle
+    std::vector<Particle> particles(PARTICLE_COUNT);
+    for (auto& particle : particles)
+    {
+        float depth = /*0.25f * */sqrt(rndDist(rndEngine));
+        float r = 0.25f * sqrt(rndDist(rndEngine));
+        float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
+        float x = r * cos(theta) * HEIGHT / WIDTH;
+        float y = r * sin(theta);
+        particle.position = glm::vec3(x, y, depth);
+        particle.velocity = glm::normalize(glm::vec3(x, y, 0.0)) * 0.000025f;
+        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+        particle.color = glm::vec4(1.0-depth, 1.0-depth, 1.0-depth, 1.0f);
+    }
+    int test = sizeof(Particle);
+    VkDeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
+
+    // Create a staging buffer used to upload data to the gpu
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(m_contextPtr->getPhysicalDevice(), m_contextPtr->getDevice(), bufferSize,
+                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(m_contextPtr->getDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, particles.data(), (size_t)bufferSize);
+    vkUnmapMemory(m_contextPtr->getDevice(), stagingBufferMemory);
+
+    m_computeShaderStorageBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    m_computeShaderStorageBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+
+    // Copy initial particle data to all storage buffers
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+    {
+        createBuffer(m_contextPtr->getPhysicalDevice(), m_contextPtr->getDevice(), bufferSize, 
+                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+                     m_computeShaderStorageBuffers.at(i), m_computeShaderStorageBuffersMemory.at(i));
+        copyBuffer(m_contextPtr->getDevice(), m_contextPtr->getCommandPool(), m_contextPtr->getGraphicsQueue(), 
+                   stagingBuffer, m_computeShaderStorageBuffers.at(i), bufferSize);
+    }
+
+    vkDestroyBuffer(m_contextPtr->getDevice(), stagingBuffer, nullptr);
+    vkFreeMemory(m_contextPtr->getDevice(), stagingBufferMemory, nullptr);
+
+}
+
+
+
+/*
+ * Writes commands for graphics shader  into a command buffer
+ */
+void DemoApp::recordGraphicsCommandBuffer_particles(VkCommandBuffer _commandBuffer, uint32_t _imageIndex)
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0; // Optional
+    beginInfo.pInheritanceInfo = nullptr; // Optional
+
+    if (vkBeginCommandBuffer(_commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
+
+
+    // Prepares render pass
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = m_graphicsPipeline_particles.getRenderPass();
+    renderPassInfo.framebuffer = m_swapChainFramebuffers.at(_imageIndex);
+    renderPassInfo.renderArea.offset = { 0, 0 };
+    renderPassInfo.renderArea.extent = m_swapChainExtent;
+
+//    std::array<VkClearValue, 1> clearValues{};
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues.at(0).color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    clearValues.at(1).depthStencil = { 1.0f, 0 };
+
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    // Begins render pass
+    vkCmdBeginRenderPass(_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    {
+        // Basic drawing commands
+        vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline_particles.getPipeline());
+
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(m_swapChainExtent.width);
+        viewport.height = static_cast<float>(m_swapChainExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = { 0, 0 };
+        scissor.extent = m_swapChainExtent;
+        vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
+
+
+        // Bind vertex buffer
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(_commandBuffer, 0, 1, &m_computeShaderStorageBuffers.at(m_currentFrame), offsets);
+ 
+        // Issue draw command !
+        vkCmdDraw(_commandBuffer, PARTICLE_COUNT, 1, 0, 0);
+    }
+
+    // Ends render pass
+    vkCmdEndRenderPass(_commandBuffer);
+    if (vkEndCommandBuffer(_commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
+    }
+}
+
+
 
 } // namespace VulkanDemo

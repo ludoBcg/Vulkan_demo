@@ -62,22 +62,25 @@ private:
     bool m_useDepthBuffer = true;
     bool m_useColorAttachmentResolve = true;
     Pipeline m_computePipeline;     // compute shader pipeline
+    Pipeline m_graphicsPipeline_particles; 
 
     // images
     Image m_textureImage;   // texture
     Image m_depthImage;     // depth buffer
     Image m_colorImage;     // image to store the desired number of samples per pixel
 
-    // Command buffer (for each in-flight frame)
-    std::vector<VkCommandBuffer> m_commandBuffers;
-
     // Semaphores and fences (for each in-flight frame)
     std::vector<VkSemaphore> m_imageAvailableSemaphores;
     std::vector<VkSemaphore> m_renderFinishedSemaphores;
+    std::vector<VkSemaphore> m_computeFinishedSemaphores;
     std::vector<VkFence> m_inFlightFences;
+    std::vector<VkFence> m_computeInFlightFences;
 
     // Resize flag
     bool m_framebufferResized = false;
+
+    double m_lastFrameTime = 0.0;
+    double m_lastTime = 0.0;
 
     // id of current frame to draw
     uint32_t m_currentFrame = 0;
@@ -86,6 +89,7 @@ private:
     Mesh m_mesh;
 
     UniformBufferObject m_ubo{};
+    //ComputeUniformBufferObject m_ubo_particles{};
     glm::mat4 m_initModel;
     GLtools::Camera m_camera;
     GLtools::Trackball m_trackball;
@@ -94,12 +98,11 @@ private:
     std::vector<VkBuffer> m_uniformBuffers;
     std::vector<VkDeviceMemory> m_uniformBuffersMemory;
     std::vector<void*> m_uniformBuffersMapped;
+    std::vector<VkBuffer> m_computeShaderStorageBuffers;
+    std::vector<VkDeviceMemory> m_computeShaderStorageBuffersMemory;
  
 
     // Descriptors (i.e., uniforms)
-    VkDescriptorSetLayout m_graphicsDescriptorSetLayout; // graphics pipeline descriptors
-    VkDescriptorSetLayout m_computeDescriptorSetLayout;  // compute pipeline descriptors
-    VkDescriptorPool m_descriptorPool;
     std::vector<VkDescriptorSet>  m_graphicsDescriptorSets;
     std::vector<VkDescriptorSet>  m_computeDescriptorSets;
 
@@ -113,6 +116,7 @@ private:
     // main steps of initVulkan()
     void pickPhysicalDevice();
     void createSwapChain();
+    void createComputeShaderStorageBuffers();
     void createImageViews();
     void createRenderPass();
     void createDescriptorSetLayouts();
@@ -121,7 +125,7 @@ private:
     void createDepthResources();
     void createColorResources();
     void createUniformBuffers();
-    void createDescriptorPool();
+    void createDescriptorPools();
     void createDescriptorSets();
     void createCommandBuffers();
     void createSyncObjects();
@@ -140,13 +144,16 @@ private:
 
     // main step of mainLoop()
     void drawFrame();
+    void drawFrame_particles();
 
     // used in drawFrame()
     void recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);
+    void recordGraphicsCommandBuffer_particles(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);
     void recordComputeCommandBuffer(VkCommandBuffer _commandBuffer);
     void cleanupSwapChain();
     void recreateSwapChain();
     void updateUniformBuffer(uint32_t _currentImage);
+    void updateUniformBuffer_particles(uint32_t _currentImage);
 
     // UI callbacks
     static void framebufferResizeCallback(GLFWwindow* _window, int _width, int _height);

@@ -93,15 +93,17 @@ namespace VulkanDemo
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 proj;
         alignas(16) glm::vec3 lightPos;
+
+        float deltaTime = 1.0f;
     };
 
     /*
      * Structure to store data associated with compute shader
      */
-    struct ComputeUniformBufferObject 
-    {
-        float deltaTime = 1.0f;
-    };
+    //struct ComputeUniformBufferObject 
+    //{
+    //    float deltaTime = 1.0f;
+    //};
 
 
 
