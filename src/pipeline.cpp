@@ -13,6 +13,127 @@
 namespace VulkanDemo
 {
 
+
+/*
+ * Creation of descriptor set layout for a graphics pipeline
+ */
+void Pipeline::createGraphicsDescriptorSetLayout(VkDevice _device)
+{
+    // UniformBufferObject binding (cf. vertex shader layout(binding = 0) uniform)
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+    // sampler2D (i.e., texture) binding (cf. fragment shader layout(binding = 1) uniform)
+    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+    samplerLayoutBinding.binding = 1;
+    samplerLayoutBinding.descriptorCount = 1;
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> graphicsBindings = { uboLayoutBinding, samplerLayoutBinding };
+    VkDescriptorSetLayoutCreateInfo graphicsLayoutInfo{};
+    graphicsLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    graphicsLayoutInfo.bindingCount = static_cast<uint32_t>(graphicsBindings.size());
+    graphicsLayoutInfo.pBindings = graphicsBindings.data();
+
+    if (vkCreateDescriptorSetLayout(_device, &graphicsLayoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor set layout!");
+    }
+}
+
+
+/*
+ * Creation of descriptor set layout for a compute pipeline
+ */
+void Pipeline::createComputeDescriptorSetLayout(VkDevice _device)
+{
+    // UniformBufferObject binding (cf. compute shader layout(binding = 0) uniform)
+    std::array<VkDescriptorSetLayoutBinding, 3> layoutBindings{};
+    layoutBindings.at(0).binding = 0;
+    layoutBindings.at(0).descriptorCount = 1;
+    layoutBindings.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBindings.at(0).pImmutableSamplers = nullptr;
+    layoutBindings.at(0).stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    // Shader Storage Buffer Object (SSBO) input binding (cf. compute shader layout(binding = 1) readonly buffer)
+    layoutBindings.at(1).binding = 1;
+    layoutBindings.at(1).descriptorCount = 1;
+    layoutBindings.at(1).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutBindings.at(1).pImmutableSamplers = nullptr;
+    layoutBindings.at(1).stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    //  Shader Storage Buffer Object (SSBO) output binding (cf. compute shader layout(binding = 2) buffer)
+    layoutBindings.at(2).binding = 2;
+    layoutBindings.at(2).descriptorCount = 1;
+    layoutBindings.at(2).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutBindings.at(2).pImmutableSamplers = nullptr;
+    layoutBindings.at(2).stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutCreateInfo computeLayoutInfo{};
+    computeLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    computeLayoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+    computeLayoutInfo.pBindings = layoutBindings.data();
+
+    if (vkCreateDescriptorSetLayout(_device, &computeLayoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute descriptor set layout!");
+    }
+
+    infoLog() << "createComputeDescriptorSetLayout(): OK ";
+}
+
+
+/*
+ * Descriptors allocation from a pool
+ */
+void Pipeline::createGraphicsDescriptorPools(VkDevice _device, const uint32_t _descriptorCount) 
+{
+    // Two descriptors: uniforms and sampler
+    std::vector<VkDescriptorPoolSize> poolSizes(2);
+    poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes.at(0).descriptorCount = _descriptorCount;
+    poolSizes.at(1).type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes.at(1).descriptorCount = _descriptorCount;
+
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = _descriptorCount;
+
+    if (vkCreateDescriptorPool(_device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+
+}
+
+
+/*
+ * Descriptors allocation from a pool
+ */
+void Pipeline::createComputeDescriptorPools(VkDevice _device, const uint32_t _descriptorCount) 
+{
+    std::vector<VkDescriptorPoolSize> poolSizes(1);
+    poolSizes.at(0).type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSizes.at(0).descriptorCount = _descriptorCount;
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = _descriptorCount;
+
+    if (vkCreateDescriptorPool(_device, &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create descriptor pool!");
+    }
+}
+
+
+
+
 /*
  * Creation of render pass 
  */
@@ -128,7 +249,7 @@ void Pipeline::createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat
 void Pipeline::createGraphicsPipeline(VkDevice _device,
                                       VkShaderModule _vertShaderModule, VkShaderModule _fragShaderModule,
                                       VkPipelineVertexInputStateCreateInfo _vertexInputInfo,
-                                      VkDescriptorSetLayout _descriptorSetLayout,
+                                     /* VkDescriptorSetLayout _descriptorSetLayout,*/
                                       bool _useDepthBuffer, VkSampleCountFlagBits _sampleCount,
                                       unsigned int _polygoneMode, unsigned int _topology, unsigned int _cullMode)
 {
@@ -257,8 +378,8 @@ void Pipeline::createGraphicsPipeline(VkDevice _device,
     // pipeline layout
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = ( _descriptorSetLayout == nullptr ? 0 : 1 );
-    pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout;
+    pipelineLayoutInfo.setLayoutCount = ( m_descriptorSetLayout == VK_NULL_HANDLE ? 0 : 1 );
+    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
@@ -304,8 +425,8 @@ void Pipeline::createGraphicsPipeline(VkDevice _device,
  * Creation of compute shader pipeline
  */
 void Pipeline::createComputePipeline( VkDevice _device,
-                                      VkShaderModule _compShaderModule,
-                                      VkDescriptorSetLayout _descriptorSetLayout )
+                                      VkShaderModule _compShaderModule/*,
+                                      VkDescriptorSetLayout _descriptorSetLayout*/ )
 {
     VkPipelineShaderStageCreateInfo computeShaderStageInfo{};
     computeShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -316,7 +437,7 @@ void Pipeline::createComputePipeline( VkDevice _device,
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout;
+    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
 
     if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create compute pipeline layout!");
@@ -336,15 +457,39 @@ void Pipeline::createComputePipeline( VkDevice _device,
 }
 
 
-
-void Pipeline::destroy(VkDevice _device)
+void Pipeline::createCommandBuffers(VkDevice _device, VkCommandPool _commandPool, const int _inFlightFrames)
 {
+    m_commandBuffers.resize(_inFlightFrames);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = _commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(m_commandBuffers.size());
+
+    if (vkAllocateCommandBuffers(_device, &allocInfo, m_commandBuffers.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+}
+
+
+void Pipeline::destroy(VkDevice _device, VkCommandPool _commandPool)
+{
+    if(m_descriptorPool != VK_NULL_HANDLE)
+        vkDestroyDescriptorPool(_device, m_descriptorPool, nullptr);
+    if(m_descriptorSetLayout != VK_NULL_HANDLE)
+        vkDestroyDescriptorSetLayout(_device, m_descriptorSetLayout, nullptr);
+
+
     if(m_pipeline != VK_NULL_HANDLE)
 	    vkDestroyPipeline(_device, m_pipeline, nullptr);
     if(m_pipelineLayout != VK_NULL_HANDLE)
 	    vkDestroyPipelineLayout(_device, m_pipelineLayout, nullptr);
     if(m_renderPass != VK_NULL_HANDLE)
         vkDestroyRenderPass(_device, m_renderPass, nullptr);
+
+    vkFreeCommandBuffers(_device, _commandPool, static_cast<uint32_t>(m_commandBuffers.size()), m_commandBuffers.data());
+    m_commandBuffers.clear();
 }
 
 } // namespace VulkanDemo
