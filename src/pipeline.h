@@ -15,6 +15,7 @@
 
 namespace VulkanDemo
 {
+    class Image;
 
 class Pipeline
 {
@@ -30,6 +31,7 @@ public:
     {
         m_descriptorSetLayout = _other.m_descriptorSetLayout;
         m_descriptorPool = _other.m_descriptorPool;
+        m_descriptorSets = _other.m_descriptorSets;
         m_renderPass = _other.m_renderPass;
         m_pipelineLayout = _other.m_pipelineLayout;
         m_pipeline = _other.m_pipeline;
@@ -40,6 +42,7 @@ public:
     Pipeline(Pipeline&& _other)
         : m_descriptorSetLayout(_other.m_descriptorSetLayout)
         , m_descriptorPool(_other.m_descriptorPool)
+        , m_descriptorSets(std::move(_other.m_descriptorSets))
         , m_renderPass(_other.m_renderPass)
         , m_pipelineLayout(_other.m_pipelineLayout)
         , m_pipeline(_other.m_pipeline)
@@ -50,6 +53,7 @@ public:
     {
         m_descriptorSetLayout = _other.m_descriptorSetLayout;
         m_descriptorPool = _other.m_descriptorPool;
+        m_descriptorSets =  std::move(_other.m_descriptorSets);
         m_renderPass = _other.m_renderPass;
         m_pipelineLayout = _other.m_pipelineLayout;
         m_pipeline = _other.m_pipeline;
@@ -62,7 +66,7 @@ public:
 
     VkDescriptorSetLayout const& getDescriptorSetLayout() const { return m_descriptorSetLayout; }
     VkDescriptorPool const& getDescriptorPool() const { return m_descriptorPool; }
-    //std::vector<VkDescriptorSet> const& getDescriptorSets() const { return m_descriptorSets; }
+    std::vector<VkDescriptorSet> const& getDescriptorSets() const { return m_descriptorSets; }
     VkRenderPass const& getRenderPass() const { return m_renderPass; }
     VkPipelineLayout const& getPipelineLayout() const { return m_pipelineLayout; }
     VkPipeline const& getPipeline() const { return m_pipeline; }
@@ -74,6 +78,14 @@ public:
 
     void createGraphicsDescriptorPools(VkDevice _device, const uint32_t _descriptorCount);
     void createComputeDescriptorPools(VkDevice _device, const uint32_t _descriptorCount);
+
+    void createGraphicsDescriptorSet(VkDevice _device, const uint32_t _descriptorCount, 
+                                     const std::vector<VkBuffer>& _uniformBuffers, 
+                                     Image& _textureImage);
+    void createComputeDescriptorSet(VkDevice _device, const uint32_t _descriptorCount, 
+                                     const std::vector<VkBuffer>& _uniformBuffers, 
+                                     const std::vector<VkBuffer>& _computeShaderStorageBuffers,
+                                     const int& _nbParticles);
 
     void createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat,
                           bool _useDepthBuffer, bool _useColorAttachmentResolve, 
@@ -112,7 +124,7 @@ protected:
     // Descriptors (i.e., uniforms)
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;    // descriptors layout
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;              // descriptor pool
-    //std::vector<VkDescriptorSet>  m_descriptorSets; // descriptors (for each in-flight frame)
+    std::vector<VkDescriptorSet>  m_descriptorSets; // descriptors (for each in-flight frame)
 
     VkRenderPass m_renderPass = VK_NULL_HANDLE;          // the render pipeline
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;  // defines uniforms

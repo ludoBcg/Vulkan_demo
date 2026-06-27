@@ -9,6 +9,7 @@
 
 #include "pipeline.h"
 
+#include "image.h"
 
 namespace VulkanDemo
 {
@@ -132,6 +133,139 @@ void Pipeline::createComputeDescriptorPools(VkDevice _device, const uint32_t _de
 }
 
 
+/*
+ * Allocates the descriptor sets for graphics pipelines
+ */
+void Pipeline::createGraphicsDescriptorSet(VkDevice _device, const uint32_t _descriptorCount,
+                                           const std::vector<VkBuffer>& _uniformBuffers, 
+                                           Image& _textureImage)
+{
+    assert(_uniformBuffers.size() == _descriptorCount);
+    if(_uniformBuffers.size() != _descriptorCount)
+        errorLog() << "Pipeline::createGraphicsDescriptorSet(): size of _uniformBuffers must be equal to _descriptorCount "; 
+
+    std::vector<VkDescriptorSetLayout> layouts(_descriptorCount, m_descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorSetCount = _descriptorCount;
+    allocInfo.pSetLayouts = layouts.data();
+
+    m_descriptorSets.resize(_descriptorCount);
+    if (vkAllocateDescriptorSets(_device, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
+    for (size_t i = 0; i < _descriptorCount; i++) 
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = _uniformBuffers.at(i);
+        bufferInfo.offset = 0;
+        bufferInfo.range = VK_WHOLE_SIZE /*sizeof(UniformBufferObject)*/;
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = _textureImage.getImageView();
+        imageInfo.sampler = _textureImage.getSampler();
+
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+        descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(0).dstSet = m_descriptorSets.at(i);
+        descriptorWrites.at(0).dstBinding = 0;
+        descriptorWrites.at(0).dstArrayElement = 0;
+        descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites.at(0).descriptorCount = 1;
+        descriptorWrites.at(0).pBufferInfo = &bufferInfo;
+
+        descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(1).dstSet = m_descriptorSets.at(i);
+        descriptorWrites.at(1).dstBinding = 1;
+        descriptorWrites.at(1).dstArrayElement = 0;
+        descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrites.at(1).descriptorCount = 1;
+        descriptorWrites.at(1).pImageInfo = &imageInfo;
+        //descriptorWrites.at(1).pTexelBufferView = nullptr; // Optional
+
+        vkUpdateDescriptorSets(_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    }
+}
+
+
+/*
+ * Allocates the descriptor sets for compute pipelines
+ */
+void Pipeline::createComputeDescriptorSet(VkDevice _device, const uint32_t _descriptorCount,
+                                          const std::vector<VkBuffer>& _uniformBuffers,
+                                          const std::vector<VkBuffer>& _computeShaderStorageBuffers,
+                                          const int& _nbParticles)
+{
+    assert(_uniformBuffers.size() == _descriptorCount);
+    if(_uniformBuffers.size() != _descriptorCount)
+        errorLog() << "Pipeline::createGraphicsDescriptorSet(): size of _uniformBuffers must be equal to _descriptorCount "; 
+
+    assert(_computeShaderStorageBuffers.size() == _descriptorCount);
+    if(_computeShaderStorageBuffers.size() != _descriptorCount)
+        errorLog() << "Pipeline::createGraphicsDescriptorSet(): size of _computeShaderStorageBuffers must be equal to _descriptorCount "; 
+
+   std::vector<VkDescriptorSetLayout> layouts(_descriptorCount, m_descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = m_descriptorPool;
+    allocInfo.descriptorSetCount = _descriptorCount;
+    allocInfo.pSetLayouts = layouts.data();
+
+    m_descriptorSets.resize(_descriptorCount);
+    if (vkAllocateDescriptorSets(_device, &allocInfo, m_descriptorSets.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
+    for (size_t i = 0; i < _descriptorCount; i++) 
+    {
+        VkDescriptorBufferInfo uniformBufferInfo{};
+        uniformBufferInfo.buffer = _uniformBuffers.at(i);
+        uniformBufferInfo.offset = 0;
+        uniformBufferInfo.range = VK_WHOLE_SIZE /*sizeof(UniformBufferObject)*/;
+
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+
+        descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(0).dstSet = m_descriptorSets.at(i);
+        descriptorWrites.at(0).dstBinding = 0;
+        descriptorWrites.at(0).dstArrayElement = 0;
+        descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites.at(0).descriptorCount = 1;
+        descriptorWrites.at(0).pBufferInfo = &uniformBufferInfo;
+
+        VkDescriptorBufferInfo storageBufferInfoLastFrame{};
+        storageBufferInfoLastFrame.buffer = _computeShaderStorageBuffers.at((i - 1) % _descriptorCount);
+        storageBufferInfoLastFrame.offset = 0;
+        storageBufferInfoLastFrame.range = sizeof(Particle) * _nbParticles;
+
+        descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(1).dstSet = m_descriptorSets.at(i);
+        descriptorWrites.at(1).dstBinding = 1;
+        descriptorWrites.at(1).dstArrayElement = 0;
+        descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites.at(1).descriptorCount = 1;
+        descriptorWrites.at(1).pBufferInfo = &storageBufferInfoLastFrame;
+
+        VkDescriptorBufferInfo storageBufferInfoCurrentFrame{};
+        storageBufferInfoCurrentFrame.buffer = _computeShaderStorageBuffers.at(i);
+        storageBufferInfoCurrentFrame.offset = 0;
+        storageBufferInfoCurrentFrame.range = sizeof(Particle) * _nbParticles;
+
+        descriptorWrites.at(2).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.at(2).dstSet = m_descriptorSets.at(i);
+        descriptorWrites.at(2).dstBinding = 2;
+        descriptorWrites.at(2).dstArrayElement = 0;
+        descriptorWrites.at(2).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites.at(2).descriptorCount = 1;
+        descriptorWrites.at(2).pBufferInfo = &storageBufferInfoCurrentFrame;
+
+        vkUpdateDescriptorSets(_device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    }
+}
 
 
 /*

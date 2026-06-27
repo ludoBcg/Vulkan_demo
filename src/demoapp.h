@@ -102,10 +102,6 @@ private:
     std::vector<VkDeviceMemory> m_computeShaderStorageBuffersMemory;
  
 
-    // Descriptors (i.e., uniforms)
-    std::vector<VkDescriptorSet>  m_graphicsDescriptorSets;
-    std::vector<VkDescriptorSet>  m_computeDescriptorSets;
-
     // main steps of run()
     void initWindow();
     void initVulkan();

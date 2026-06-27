@@ -676,113 +676,13 @@ void DemoApp::createDescriptorPools()
 void DemoApp::createDescriptorSets()
 {
     // 1. Descriptor sets for graphics pipeline
+    m_graphicsPipeline.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers, m_textureImage);
 
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_graphicsPipeline.getDescriptorSetLayout());
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = m_graphicsPipeline.getDescriptorPool();
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    allocInfo.pSetLayouts = layouts.data();
-
-    m_graphicsDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(m_contextPtr->getDevice(), &allocInfo, m_graphicsDescriptorSets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets!");
-    }
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
-    {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_uniformBuffers.at(i);
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
-
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = m_textureImage.getImageView();
-        imageInfo.sampler = m_textureImage.getSampler();
-
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-        descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites.at(0).dstSet = m_graphicsDescriptorSets.at(i);
-        descriptorWrites.at(0).dstBinding = 0;
-        descriptorWrites.at(0).dstArrayElement = 0;
-        descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites.at(0).descriptorCount = 1;
-        descriptorWrites.at(0).pBufferInfo = &bufferInfo;
-
-        descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites.at(1).dstSet = m_graphicsDescriptorSets.at(i);
-        descriptorWrites.at(1).dstBinding = 1;
-        descriptorWrites.at(1).dstArrayElement = 0;
-        descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites.at(1).descriptorCount = 1;
-        descriptorWrites.at(1).pImageInfo = &imageInfo;
-        //descriptorWrites.at(1).pTexelBufferView = nullptr; // Optional
-
-        vkUpdateDescriptorSets(m_contextPtr->getDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-    }
 
     // 2. Descriptor sets for compute pipeline
-    {
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_computePipeline.getDescriptorSetLayout()/*m_computeDescriptorSetLayout*/);
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = m_computePipeline.getDescriptorPool() /*m_computeDescriptorPool*/;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        allocInfo.pSetLayouts = layouts.data();
-
-        m_computeDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(m_contextPtr->getDevice(), &allocInfo, m_computeDescriptorSets.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate descriptor sets!");
-        }
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
-        {
-            VkDescriptorBufferInfo uniformBufferInfo{};
-            uniformBufferInfo.buffer = m_uniformBuffers.at(i);
-            uniformBufferInfo.offset = 0;
-            uniformBufferInfo.range = sizeof(UniformBufferObject);
-
-            std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
-
-            descriptorWrites.at(0).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites.at(0).dstSet = m_computeDescriptorSets.at(i);
-            descriptorWrites.at(0).dstBinding = 0;
-            descriptorWrites.at(0).dstArrayElement = 0;
-            descriptorWrites.at(0).descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites.at(0).descriptorCount = 1;
-            descriptorWrites.at(0).pBufferInfo = &uniformBufferInfo;
-
-            VkDescriptorBufferInfo storageBufferInfoLastFrame{};
-            storageBufferInfoLastFrame.buffer = m_computeShaderStorageBuffers.at((i - 1) % MAX_FRAMES_IN_FLIGHT);
-            storageBufferInfoLastFrame.offset = 0;
-            storageBufferInfoLastFrame.range = sizeof(Particle) * PARTICLE_COUNT;
-
-            descriptorWrites.at(1).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites.at(1).dstSet = m_computeDescriptorSets.at(i);
-            descriptorWrites.at(1).dstBinding = 1;
-            descriptorWrites.at(1).dstArrayElement = 0;
-            descriptorWrites.at(1).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            descriptorWrites.at(1).descriptorCount = 1;
-            descriptorWrites.at(1).pBufferInfo = &storageBufferInfoLastFrame;
-
-            VkDescriptorBufferInfo storageBufferInfoCurrentFrame{};
-            storageBufferInfoCurrentFrame.buffer = m_computeShaderStorageBuffers.at(i);
-            storageBufferInfoCurrentFrame.offset = 0;
-            storageBufferInfoCurrentFrame.range = sizeof(Particle) * PARTICLE_COUNT;
-
-            descriptorWrites.at(2).sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites.at(2).dstSet = m_computeDescriptorSets.at(i);
-            descriptorWrites.at(2).dstBinding = 2;
-            descriptorWrites.at(2).dstArrayElement = 0;
-            descriptorWrites.at(2).descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            descriptorWrites.at(2).descriptorCount = 1;
-            descriptorWrites.at(2).pBufferInfo = &storageBufferInfoCurrentFrame;
-
-            vkUpdateDescriptorSets(m_contextPtr->getDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-        }
-    }
+    m_computePipeline.createComputeDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, 
+                                                 m_uniformBuffers, m_computeShaderStorageBuffers,
+                                                 PARTICLE_COUNT);
 }
 
 
@@ -865,7 +765,7 @@ void DemoApp::recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32
         vkCmdBindIndexBuffer(_commandBuffer, m_mesh.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32 /*VK_INDEX_TYPE_UINT16*/);
 
         // Bind descriptors (i.e., uniforms)
-        vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline.getPipelineLayout(), 0, 1, &m_graphicsDescriptorSets.at(m_currentFrame), 0, nullptr);
+        vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline.getPipelineLayout(), 0, 1, &m_graphicsPipeline.getDescriptorSets().at(m_currentFrame), 0, nullptr);
 
         // Issue draw command !
         //vkCmdDraw(_commandBuffer, static_cast<uint32_t>(m_vertices.size()), 1, 0, 0); // unindexed vertex buffer version
@@ -897,7 +797,7 @@ void DemoApp::recordComputeCommandBuffer(VkCommandBuffer _commandBuffer)
 
     vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline.getPipeline());
 
-    vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline.getPipelineLayout(), 0, 1, &m_computeDescriptorSets.at(m_currentFrame), 0, nullptr);
+    vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline.getPipelineLayout(), 0, 1, &m_computePipeline.getDescriptorSets().at(m_currentFrame), 0, nullptr);
 
     vkCmdDispatch(_commandBuffer, PARTICLE_COUNT / 256, 1, 1);
 
