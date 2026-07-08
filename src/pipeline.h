@@ -88,7 +88,7 @@ public:
                                      const int& _nbParticles);
 
     void createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat,
-                          bool _useDepthBuffer, bool _useColorAttachmentResolve, 
+                          bool _useDepthBuffer, bool _useColorAttachmentResolve, bool _clearColor, 
                           VkSampleCountFlagBits _sampleCount, VkFormat _depthFormat);
 
     //VK_POLYGON_MODE_FILL = 0,

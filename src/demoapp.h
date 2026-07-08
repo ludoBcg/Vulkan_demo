@@ -114,7 +114,7 @@ private:
     void createSwapChain();
     void createComputeShaderStorageBuffers();
     void createImageViews();
-    void createRenderPass();
+    void createRenderPasses();
     void createDescriptorSetLayouts();
     void createPipelines();
     void createFramebuffers();
@@ -139,8 +139,9 @@ private:
     VkFormat findDepthFormat();
 
     // main step of mainLoop()
-    void drawFrame();
+    void drawFrame_mesh();
     void drawFrame_particles();
+    void drawFrame();
 
     // used in drawFrame()
     void recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);

@@ -272,18 +272,18 @@ void Pipeline::createComputeDescriptorSet(VkDevice _device, const uint32_t _desc
  * Creation of render pass 
  */
 void Pipeline::createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat,
-                                bool _useDepthBuffer, bool _useColorAttachmentResolve,
+                                bool _useDepthBuffer, bool _useColorAttachmentResolve, bool _clearColor,
                                 VkSampleCountFlagBits _sampleCount, VkFormat _depthFormat)
 {
     // defines color attachment (attachment 0)
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = _swapChainImageFormat;
     colorAttachment.samples = _sampleCount;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.loadOp = _clearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.initialLayout = _clearColor ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachment.finalLayout = _useColorAttachmentResolve ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     // subpass will reference color attachment

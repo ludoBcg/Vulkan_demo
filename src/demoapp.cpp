@@ -73,7 +73,7 @@ void DemoApp::initVulkan()
     m_contextPtr->createLogicalDevice();
     createSwapChain();
     createImageViews();
-    createRenderPass();
+    createRenderPasses();
     createDescriptorSetLayouts();
     createPipelines();
     m_contextPtr->createCommandPool();
@@ -128,8 +128,9 @@ void DemoApp::mainLoop()
     {
         glfwPollEvents();
 
-        drawFrame();
         //drawFrame_particles();
+        //drawFrame_mesh();
+        drawFrame();
 
     }
 
@@ -407,10 +408,10 @@ void DemoApp::createImageViews()
 /*
  * Creation of render pass 
  */
-void DemoApp::createRenderPass()
+void DemoApp::createRenderPasses()
 {
-    m_graphicsPipeline.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, m_msaaSamples, findDepthFormat());
-    m_graphicsPipeline_particles.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, m_msaaSamples, VK_FORMAT_D32_SFLOAT);
+    m_graphicsPipeline.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, /*true*/ false, m_msaaSamples, findDepthFormat());
+    m_graphicsPipeline_particles.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, true, m_msaaSamples, VK_FORMAT_D32_SFLOAT);
 
 
     infoLog() << "createRenderPass(): OK ";
@@ -847,7 +848,7 @@ void DemoApp::createSyncObjects()
 /*
  * Drawing function
  */
-void DemoApp::drawFrame()
+void DemoApp::drawFrame_mesh()
 {
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1324,6 +1325,110 @@ void DemoApp::recordGraphicsCommandBuffer_particles(VkCommandBuffer _commandBuff
         throw std::runtime_error("failed to record command buffer!");
     }
 }
+
+
+void DemoApp::drawFrame()
+{
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    // 1. Compute submission        
+    vkWaitForFences(m_contextPtr->getDevice(), 1, &m_computeInFlightFences.at(m_currentFrame), VK_TRUE, UINT64_MAX);
+
+    updateUniformBuffer_particles(m_currentFrame);
+
+    vkResetFences(m_contextPtr->getDevice(), 1, &m_computeInFlightFences.at(m_currentFrame));
+
+    recordComputeCommandBuffer(m_computePipeline.getCommandBuffers().at(m_currentFrame));
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_computePipeline.getCommandBuffers().at(m_currentFrame);
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &m_computeFinishedSemaphores.at(m_currentFrame);
+
+    if (vkQueueSubmit(m_contextPtr->getComputeQueue(), 1, &submitInfo, m_computeInFlightFences.at(m_currentFrame)) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to submit compute command buffer!");
+    };
+
+
+    // 2. Graphics submission Particles and Mesh
+    vkWaitForFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame), VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex;
+    VkResult result = vkAcquireNextImageKHR(m_contextPtr->getDevice(), m_swapChain, UINT64_MAX, 
+                                            m_imageAvailableSemaphores.at(m_currentFrame), VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) 
+    {
+        recreateSwapChain();
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    updateUniformBuffer(m_currentFrame);
+
+    // Only reset the fence if we are submitting work
+    vkResetFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame));
+
+    vkResetCommandBuffer(m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), 0);
+    recordGraphicsCommandBuffer_particles(m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), imageIndex);
+    vkResetCommandBuffer(m_graphicsPipeline.getCommandBuffers().at(m_currentFrame), 0);
+    recordGraphicsCommandBuffer(m_graphicsPipeline.getCommandBuffers().at(m_currentFrame), imageIndex);
+
+    std::array<VkSemaphore, 2> waitSemaphores = { m_computeFinishedSemaphores.at(m_currentFrame), m_imageAvailableSemaphores.at(m_currentFrame) };
+    std::array<VkPipelineStageFlags, 2> waitStages = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    std::array<VkCommandBuffer, 2> cmdBuffers = { m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), 
+                                                  m_graphicsPipeline.getCommandBuffers().at(m_currentFrame) };
+    submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size());
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.pWaitDstStageMask = waitStages.data();
+    submitInfo.commandBufferCount = static_cast<uint32_t>(cmdBuffers.size()); //1;
+    submitInfo.pCommandBuffers = cmdBuffers.data();
+
+    std::array<VkSemaphore, 1> signalSemaphores = { m_renderFinishedSemaphores.at(m_currentFrame) };
+    submitInfo.signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size());
+    submitInfo.pSignalSemaphores = signalSemaphores.data();
+
+    if (vkQueueSubmit(m_contextPtr->getGraphicsQueue(), 1, &submitInfo, m_inFlightFences.at(m_currentFrame)) != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores.data();
+    VkSwapchainKHR swapChains[] = { m_swapChain };
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr; // Optional
+
+    result = vkQueuePresentKHR(m_contextPtr->getPresentQueue(), &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebufferResized)
+    {
+        m_framebufferResized = false;
+        recreateSwapChain();
+    }
+    else if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to present swap chain image!");
+    }
+
+    // update current frame id
+    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+    // We want to animate the particle system using the last frames time to get smooth, frame-rate independent animation
+    double currentTime = glfwGetTime();
+    m_lastFrameTime = (currentTime - m_lastTime) * 1000.0;
+    m_lastTime = currentTime; 
+}
+
 
 
 
