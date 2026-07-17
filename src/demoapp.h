@@ -32,6 +32,8 @@ class DemoApp
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
     const uint32_t PARTICLE_COUNT  = 256 /*8192*/;
+    const bool DRAW_PARTICLES = true;
+    const bool DRAW_MESH = true;
 
 public:
 
@@ -58,11 +60,11 @@ private:
     std::vector<VkFramebuffer> m_swapChainFramebuffers; // framebuffers
     VkSampleCountFlagBits m_msaaSamples = VK_SAMPLE_COUNT_1_BIT; // nb of samples per pixel
 
-    Pipeline m_graphicsPipeline;    // render and graphics pipeline
+    Pipeline m_graphicsPipeline_mesh;       // render and graphics pipeline for mesh
+    Pipeline m_graphicsPipeline_particles;  // render and graphics pipeline for particles
+    Pipeline m_computePipeline;             // compute shader pipeline
     bool m_useDepthBuffer = true;
-    bool m_useColorAttachmentResolve = true;
-    Pipeline m_computePipeline;     // compute shader pipeline
-    Pipeline m_graphicsPipeline_particles; 
+    bool m_useColorAttachmentResolve = true;   
 
     // images
     Image m_textureImage;   // texture
@@ -139,8 +141,6 @@ private:
     VkFormat findDepthFormat();
 
     // main step of mainLoop()
-    void drawFrame_mesh();
-    void drawFrame_particles();
     void drawFrame();
 
     // used in drawFrame()
@@ -150,7 +150,6 @@ private:
     void cleanupSwapChain();
     void recreateSwapChain();
     void updateUniformBuffer(uint32_t _currentImage);
-    void updateUniformBuffer_particles(uint32_t _currentImage);
 
     // UI callbacks
     static void framebufferResizeCallback(GLFWwindow* _window, int _width, int _height);

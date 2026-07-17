@@ -97,15 +97,6 @@ namespace VulkanDemo
         float deltaTime = 1.0f;
     };
 
-    /*
-     * Structure to store data associated with compute shader
-     */
-    //struct ComputeUniformBufferObject 
-    //{
-    //    float deltaTime = 1.0f;
-    //};
-
-
 
     // List of validation layers to enable
     const std::vector<const char*> validationLayers = {
