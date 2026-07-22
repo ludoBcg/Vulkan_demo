@@ -24,6 +24,8 @@ void main()
 
     outColor.rgb = fragColor;
 
+    outColor.rgb = vec3(1.0 - fragColor.z) * 200.0;
+
     // discard out-of-radius fragments to paint circular points instead of squares
     if( 0.5 - length(coord) < 0.0)
         discard;
