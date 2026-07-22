@@ -272,18 +272,27 @@ void Pipeline::createComputeDescriptorSet(VkDevice _device, const uint32_t _desc
  * Creation of render pass 
  */
 void Pipeline::createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat,
-                                bool _useDepthBuffer, bool _useColorAttachmentResolve, bool _clearColor,
+                                bool _useDepthBuffer, bool _useColorAttachmentResolve, bool _clearBuffers,
                                 VkSampleCountFlagBits _sampleCount, VkFormat _depthFormat)
 {
+    // if _clearBuffers == true -> first step of the rendering:
+    // - clear framebuffer and depth buffer values as a fresh start (colorAttachment AND depthAttachment loadOp)
+    // - store depth duffer to be readible by next step (depthAttachment.storeOp)
+    //
+    // if _clearBuffers == false -> first step of the rendering:
+    // - read framebuffer and depth buffer values from previous step (colorAttachment AND depthAttachment loadOp)
+    //
+    // - store framebuffer in any cast to make both steps visible (colorAttachment.storeOp )
+
     // defines color attachment (attachment 0)
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = _swapChainImageFormat;
     colorAttachment.samples = _sampleCount;
-    colorAttachment.loadOp = _clearColor ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+    colorAttachment.loadOp = _clearBuffers ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = _clearColor ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.initialLayout = _clearBuffers ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachment.finalLayout = _useColorAttachmentResolve ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     // subpass will reference color attachment
@@ -299,11 +308,11 @@ void Pipeline::createRenderPass(VkDevice _device, VkFormat _swapChainImageFormat
     {
         depthAttachment.format = _depthFormat;
         depthAttachment.samples = _sampleCount;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.loadOp = _clearBuffers ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        depthAttachment.storeOp = _clearBuffers ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE; //store depth buffer to be used by next rendering step
         depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.initialLayout = _clearBuffers ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         // subpass will reference depth attachment
         depthAttachmentRef.attachment = 1;

@@ -410,12 +410,11 @@ void DemoApp::createImageViews()
  */
 void DemoApp::createRenderPasses()
 {
-    bool clearColorMesh = (DRAW_PARTICLES && DRAW_MESH) ? false : true;
-    m_graphicsPipeline_mesh.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, clearColorMesh, m_msaaSamples, findDepthFormat());
-    m_graphicsPipeline_particles.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, true /*clearcolor*/, m_msaaSamples, VK_FORMAT_D32_SFLOAT);
+    bool clearBuffers = (DRAW_PARTICLES && DRAW_MESH) ? false : true;
+    m_graphicsPipeline_particles.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, true, m_msaaSamples, findDepthFormat()/*VK_FORMAT_D32_SFLOAT*/);
+    m_graphicsPipeline_mesh.createRenderPass(m_contextPtr->getDevice(), m_swapChainImageFormat, m_useDepthBuffer, m_useColorAttachmentResolve, clearBuffers, m_msaaSamples, findDepthFormat()); 
 
-
-    infoLog() << "createRenderPass(): OK ";
+    infoLog() << "createRenderPasses(): OK ";
 }
 
 
@@ -1127,11 +1126,16 @@ void DemoApp::createComputeShaderStorageBuffers()
     std::default_random_engine rndEngine((unsigned)time(nullptr));
     std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
+    glm::vec4 originProj = m_camera.getProjectionMatrix() * m_camera.getViewMatrix() * glm::vec4(0.0, 0.0, 0.0, 1.0) ;
+    float depthOrigin = originProj.z/originProj.w;
+    float depthOffest = 1.0f - depthOrigin;
+
     // Initial particle positions on a circle
     std::vector<Particle> particles(PARTICLE_COUNT);
     for (auto& particle : particles)
     {
-        float depth = /*0.25f * */sqrt(rndDist(rndEngine));
+        float random_sign = (std::rand() % 2) * 2.0f - 1.0f;
+        float depth = depthOrigin + sqrt(rndDist(rndEngine)) * depthOffest * random_sign;
         float r = 0.25f * sqrt(rndDist(rndEngine));
         float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
         float x = r * cos(theta) * HEIGHT / WIDTH;
@@ -1201,7 +1205,7 @@ void DemoApp::recordGraphicsCommandBuffer_particles(VkCommandBuffer _commandBuff
 
 //    std::array<VkClearValue, 1> clearValues{};
     std::array<VkClearValue, 2> clearValues{};
-    clearValues.at(0).color = { {0.0f, 0.0f, 0.01f, 1.0f} };
+    clearValues.at(0).color = { {0.0f, 0.0f, 0.0f, 1.0f} };
     clearValues.at(1).depthStencil = { 1.0f, 0 };
 
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
