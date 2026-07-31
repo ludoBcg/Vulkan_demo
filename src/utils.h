@@ -95,6 +95,7 @@ namespace VulkanDemo
         alignas(16) glm::vec3 lightPos;
 
         float deltaTime = 1.0f;
+        float windX = 0.0f;
     };
 
 

@@ -128,10 +128,7 @@ void DemoApp::mainLoop()
     {
         glfwPollEvents();
 
-        //drawFrame_particles();
-        //drawFrame_mesh();
         drawFrame();
-
     }
 
     vkDeviceWaitIdle(m_contextPtr->getDevice());
@@ -425,6 +422,7 @@ void DemoApp::createDescriptorSetLayouts()
 {
     // 1. Graphics pipeline Descriptors
     m_graphicsPipeline_mesh.createGraphicsDescriptorSetLayout( m_contextPtr->getDevice());
+    m_graphicsPipeline_particles.createGraphicsDescriptorSetLayout( m_contextPtr->getDevice());
 
     // 2. Compute pipeline Descriptors
     m_computePipeline.createComputeDescriptorSetLayout( m_contextPtr->getDevice());
@@ -662,6 +660,7 @@ void DemoApp::createDescriptorPools()
 {
     // 1. Graphics descriptor pool
     m_graphicsPipeline_mesh.createComputeDescriptorPools(m_contextPtr->getDevice(), static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT));
+    m_graphicsPipeline_particles.createComputeDescriptorPools(m_contextPtr->getDevice(), static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT));
 
     // 2. Compute descriptor pool
     m_computePipeline.createComputeDescriptorPools(m_contextPtr->getDevice(), static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT));
@@ -678,6 +677,7 @@ void DemoApp::createDescriptorSets()
 {
     // 1. Descriptor sets for graphics pipeline
     m_graphicsPipeline_mesh.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers, m_textureImage);
+    m_graphicsPipeline_particles.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers, m_textureImage);
 
 
     // 2. Descriptor sets for compute pipeline
@@ -706,16 +706,26 @@ void DemoApp::createCommandBuffers()
 
 
 /*
- * Writes commands for graphics shader  into a command buffer
+ * Writes commands for graphics shader into a command buffer
  */
-void DemoApp::recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t _imageIndex) 
+void DemoApp::recordGraphicsCommandBuffer(Pipeline _graphicsPipeline, 
+                                          VkBuffer _vertexBuffer, VkBuffer _indexBuffer, 
+                                          uint32_t _vertexCount, uint32_t _imageIndex)
 {
+    if (_vertexBuffer == nullptr)
+    {
+        errorLog() << "DemoApp::recordGraphicsCommandBuffer(): _vertexBuffer is null ! "; 
+        return;
+    }
+
+    VkCommandBuffer commandBuffer = _graphicsPipeline.getCommandBuffers().at(m_currentFrame);
+   
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0; // Optional
     beginInfo.pInheritanceInfo = nullptr; // Optional
 
-    if (vkBeginCommandBuffer(_commandBuffer, &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
 
@@ -723,7 +733,7 @@ void DemoApp::recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32
     // Prepares render pass
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_graphicsPipeline_mesh.getRenderPass();
+    renderPassInfo.renderPass = _graphicsPipeline.getRenderPass();
     renderPassInfo.framebuffer = m_swapChainFramebuffers.at(_imageIndex);
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = m_swapChainExtent;
@@ -736,11 +746,11 @@ void DemoApp::recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32
     renderPassInfo.pClearValues = clearValues.data();
 
     // Begins render pass
-    vkCmdBeginRenderPass(_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     {
         // Basic drawing commands
-        vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline_mesh.getPipeline());
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline.getPipeline());
 
         VkViewport viewport{};
         viewport.x = 0.0f;
@@ -749,37 +759,46 @@ void DemoApp::recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32
         viewport.height = static_cast<float>(m_swapChainExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
         scissor.extent = m_swapChainExtent;
-        vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 
         // Bind vertex buffer
-        VkBuffer vertexBuffers[] = { m_mesh.getVertexBuffer() };
         VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(_commandBuffer, 0, 1, vertexBuffers, offsets);
-
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &_vertexBuffer, offsets);
+ 
         // Bind index buffer
-        vkCmdBindIndexBuffer(_commandBuffer, m_mesh.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32 /*VK_INDEX_TYPE_UINT16*/);
+        if (_indexBuffer != nullptr)
+        {
+            vkCmdBindIndexBuffer(commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32 /*VK_INDEX_TYPE_UINT16*/);
+        }
 
         // Bind descriptors (i.e., uniforms)
-        vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline_mesh.getPipelineLayout(), 0, 1, &m_graphicsPipeline_mesh.getDescriptorSets().at(m_currentFrame), 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline.getPipelineLayout(), 0, 1, &_graphicsPipeline.getDescriptorSets().at(m_currentFrame), 0, nullptr);
 
         // Issue draw command !
-        //vkCmdDraw(_commandBuffer, static_cast<uint32_t>(m_vertices.size()), 1, 0, 0); // unindexed vertex buffer version
-        vkCmdDrawIndexed(_commandBuffer, static_cast<uint32_t>(m_mesh.getIndices().size() ), 1, 0, 0, 0); // indexed vertex buffer version
+        if (_indexBuffer != nullptr)
+        {
+            vkCmdDrawIndexed(commandBuffer, _vertexCount, 1, 0, 0, 0); // indexed vertex buffer version
+        }
+        else
+        {
+            vkCmdDraw(commandBuffer, _vertexCount, 1, 0, 0); // unindexed vertex buffer version
+        }
 
     }
 
     // Ends render pass
-    vkCmdEndRenderPass(_commandBuffer);
-    if (vkEndCommandBuffer(_commandBuffer) != VK_SUCCESS) {
+    vkCmdEndRenderPass(commandBuffer);
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
     }
 }
+
 
 
 /*
@@ -899,10 +918,13 @@ void DemoApp::drawFrame()
         vkResetFences(m_contextPtr->getDevice(), 1, &m_inFlightFences.at(m_currentFrame));
 
         vkResetCommandBuffer(m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), 0);
-        recordGraphicsCommandBuffer_particles(m_graphicsPipeline_particles.getCommandBuffers().at(m_currentFrame), imageIndex);
+        recordGraphicsCommandBuffer(m_graphicsPipeline_particles, 
+                                    m_computeShaderStorageBuffers.at(m_currentFrame), nullptr, 
+                                    PARTICLE_COUNT, imageIndex);
         vkResetCommandBuffer(m_graphicsPipeline_mesh.getCommandBuffers().at(m_currentFrame), 0);
-        recordGraphicsCommandBuffer(m_graphicsPipeline_mesh.getCommandBuffers().at(m_currentFrame), imageIndex);
-
+        recordGraphicsCommandBuffer(m_graphicsPipeline_mesh, 
+                                    m_mesh.getVertexBuffer(), m_mesh.getIndexBuffer(), 
+                                    static_cast<uint32_t>(m_mesh.getIndices().size()), imageIndex);
         std::array<VkSemaphore, 2> waitSemaphores = { m_computeFinishedSemaphores.at(m_currentFrame), m_imageAvailableSemaphores.at(m_currentFrame) };
         std::array<VkPipelineStageFlags, 2> waitStages = { VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         std::vector<VkCommandBuffer> cmdBuffers;
@@ -1028,6 +1050,12 @@ void DemoApp::updateUniformBuffer(uint32_t _currentImage)
 
     m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
 
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+    float random_sign = rndDist(rndEngine) * 2.0f - 1.0f;
+    float random_x = rndDist(rndEngine) * random_sign * 0.00002f;
+    m_ubo.windX = cos( m_lastTime) * 0.00002f  + random_x;
+
     memcpy(m_uniformBuffersMapped.at(_currentImage), &m_ubo, sizeof(m_ubo));
 }
 
@@ -1134,8 +1162,8 @@ void DemoApp::createComputeShaderStorageBuffers()
     std::vector<Particle> particles(PARTICLE_COUNT);
     for (auto& particle : particles)
     {
-        float random_sign = (std::rand() % 2) * 2.0f - 1.0f;
-        float depth = depthOrigin + sqrt(rndDist(rndEngine)) * depthOffest * random_sign;
+        float random_sign = /*(std::rand() % 2)*/rndDist(rndEngine) * 2.0f - 1.0f;
+        float depth = depthOrigin + /*sqrt*/(rndDist(rndEngine)) * depthOffest * random_sign;
         float r = 0.25f * sqrt(rndDist(rndEngine));
         float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
         float x = r * cos(theta) * HEIGHT / WIDTH;
@@ -1144,6 +1172,13 @@ void DemoApp::createComputeShaderStorageBuffers()
         particle.velocity = glm::normalize(glm::vec3(x, y, 0.0)) * 0.000025f;
         particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
         particle.color = glm::vec4(1.0-depth, 1.0-depth, 1.0-depth, 1.0f);
+
+        int winWidth, winHeight;
+        glfwGetWindowSize(m_window, &winWidth, &winHeight);
+        float randX = rndDist(rndEngine) * 2.0f - 1.0f;
+        float randY = rndDist(rndEngine) * 2.0f - 1.0f;
+        particle.position = glm::vec3(randX, randY, depth);
+        particle.velocity = /*glm::normalize*/(glm::vec3(0.0f, sqrt(rndDist(rndEngine)), 0.0f)) * 0.000095f;
     }
     int test = sizeof(Particle);
     VkDeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
@@ -1176,76 +1211,6 @@ void DemoApp::createComputeShaderStorageBuffers()
     vkDestroyBuffer(m_contextPtr->getDevice(), stagingBuffer, nullptr);
     vkFreeMemory(m_contextPtr->getDevice(), stagingBufferMemory, nullptr);
 
-}
-
-
-
-/*
- * Writes commands for graphics shader  into a command buffer
- */
-void DemoApp::recordGraphicsCommandBuffer_particles(VkCommandBuffer _commandBuffer, uint32_t _imageIndex)
-{
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0; // Optional
-    beginInfo.pInheritanceInfo = nullptr; // Optional
-
-    if (vkBeginCommandBuffer(_commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
-
-
-    // Prepares render pass
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_graphicsPipeline_particles.getRenderPass();
-    renderPassInfo.framebuffer = m_swapChainFramebuffers.at(_imageIndex);
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = m_swapChainExtent;
-
-//    std::array<VkClearValue, 1> clearValues{};
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues.at(0).color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-    clearValues.at(1).depthStencil = { 1.0f, 0 };
-
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
-
-    // Begins render pass
-    vkCmdBeginRenderPass(_commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    {
-        // Basic drawing commands
-        vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline_particles.getPipeline());
-
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(m_swapChainExtent.width);
-        viewport.height = static_cast<float>(m_swapChainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
-
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = m_swapChainExtent;
-        vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
-
-
-        // Bind vertex buffer
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(_commandBuffer, 0, 1, &m_computeShaderStorageBuffers.at(m_currentFrame), offsets);
- 
-        // Issue draw command !
-        vkCmdDraw(_commandBuffer, PARTICLE_COUNT, 1, 0, 0);
-    }
-
-    // Ends render pass
-    vkCmdEndRenderPass(_commandBuffer);
-    if (vkEndCommandBuffer(_commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to record command buffer!");
-    }
 }
 
 

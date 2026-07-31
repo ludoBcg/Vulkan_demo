@@ -144,8 +144,9 @@ private:
     void drawFrame();
 
     // used in drawFrame()
-    void recordGraphicsCommandBuffer(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);
-    void recordGraphicsCommandBuffer_particles(VkCommandBuffer _commandBuffer, uint32_t _imageIndex);
+    void recordGraphicsCommandBuffer(Pipeline _graphicsPipeline, 
+                                     VkBuffer _vertexBuffer, VkBuffer _indexBuffer, 
+                                     uint32_t _vertexCount, uint32_t _imageIndex);
     void recordComputeCommandBuffer(VkCommandBuffer _commandBuffer);
     void cleanupSwapChain();
     void recreateSwapChain();
