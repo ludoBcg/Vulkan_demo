@@ -12,13 +12,14 @@ struct Particle
 //    float deltaTime;
 //} ubo;
 
-layout (binding = 0) uniform ParameterUBO
+layout (binding = 0) uniform UniformBufferObject
 {
     mat4 model;
     mat4 view;
     mat4 proj;
     vec3 lightPos;
     float deltaTime;
+    float windX;
 } ubo;
 
 layout(std140, binding = 1) readonly buffer ParticleSSBOIn 
@@ -39,17 +40,18 @@ void main()
 
     Particle particleIn = particlesIn[index];
 
-    particlesOut[index].position = particleIn.position + particleIn.velocity/*.xy*/  * ubo.deltaTime;
-    particlesOut[index].velocity = particleIn.velocity;
+    particlesOut[index].position = particleIn.position + (particleIn.velocity + vec3(ubo.windX, 0.0, 0.0)) * ubo.deltaTime;
+    particlesOut[index].velocity = particleIn.velocity  ;
 
     // Flip movement at window border
     if ((particlesOut[index].position.x <= -1.0) || (particlesOut[index].position.x >= 1.0)) 
     {
-        particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
+        //particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
     }
     if ((particlesOut[index].position.y <= -1.0) || (particlesOut[index].position.y >= 1.0)) 
     {
-        particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
+        //particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
+        particlesOut[index].position.y = -0.99;
     }
 
 }
