@@ -102,6 +102,9 @@ private:
     std::vector<void*> m_uniformBuffersMapped;
     std::vector<VkBuffer> m_computeShaderStorageBuffers;
     std::vector<VkDeviceMemory> m_computeShaderStorageBuffersMemory;
+
+    std::default_random_engine rndEngine = std::default_random_engine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist = std::uniform_real_distribution<float>(0.0f, 1.0f);
  
 
     // main steps of run()

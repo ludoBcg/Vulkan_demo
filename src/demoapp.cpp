@@ -13,9 +13,9 @@
 #include <cstdint> // Necessary for uint32_t
 //#include <limits> // Necessary for std::numeric_limits
 #include <algorithm> // Necessary for std::clamp
-#include <chrono>
+//#include <chrono>
 #include <unordered_map>
-#include <random>
+
 
 #include "demoapp.h"
 
@@ -1048,13 +1048,10 @@ void DemoApp::updateUniformBuffer(uint32_t _currentImage)
     m_ubo.model = m_trackball.getRotationMatrix() 
                 * m_initModel;
 
-    m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
+    m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;  
 
-    std::default_random_engine rndEngine((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
-    float random_sign = rndDist(rndEngine) * 2.0f - 1.0f;
-    float random_x = rndDist(rndEngine) * random_sign * 0.00002f;
-    m_ubo.windX = cos( m_lastTime) * 0.00002f  + random_x;
+    float random_offset = rndDist(rndEngine) * 0.5f;
+    m_ubo.windX = static_cast<float>(cos( m_lastTime + random_offset )) * 0.00002f;
 
     memcpy(m_uniformBuffersMapped.at(_currentImage), &m_ubo, sizeof(m_ubo));
 }
@@ -1151,36 +1148,14 @@ VkSampleCountFlagBits DemoApp::getMaxUsableSampleCount()
 void DemoApp::createComputeShaderStorageBuffers() 
 {
     // Initialize particles
-    std::default_random_engine rndEngine((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
     glm::vec4 originProj = m_camera.getProjectionMatrix() * m_camera.getViewMatrix() * glm::vec4(0.0, 0.0, 0.0, 1.0) ;
     float depthOrigin = originProj.z/originProj.w;
     float depthOffest = 1.0f - depthOrigin;
 
-    // Initial particle positions on a circle
     std::vector<Particle> particles(PARTICLE_COUNT);
-    for (auto& particle : particles)
-    {
-        float random_sign = /*(std::rand() % 2)*/rndDist(rndEngine) * 2.0f - 1.0f;
-        float depth = depthOrigin + /*sqrt*/(rndDist(rndEngine)) * depthOffest * random_sign;
-        float r = 0.25f * sqrt(rndDist(rndEngine));
-        float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
-        float x = r * cos(theta) * HEIGHT / WIDTH;
-        float y = r * sin(theta);
-        particle.position = glm::vec3(x, y, depth);
-        particle.velocity = glm::normalize(glm::vec3(x, y, 0.0)) * 0.000025f;
-        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
-        particle.color = glm::vec4(1.0-depth, 1.0-depth, 1.0-depth, 1.0f);
+    initParticles(particles, depthOrigin);
 
-        int winWidth, winHeight;
-        glfwGetWindowSize(m_window, &winWidth, &winHeight);
-        float randX = rndDist(rndEngine) * 2.0f - 1.0f;
-        float randY = rndDist(rndEngine) * 2.0f - 1.0f;
-        particle.position = glm::vec3(randX, randY, depth);
-        particle.velocity = /*glm::normalize*/(glm::vec3(0.0f, sqrt(rndDist(rndEngine)), 0.0f)) * 0.000095f;
-    }
-    int test = sizeof(Particle);
     VkDeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
 
     // Create a staging buffer used to upload data to the gpu

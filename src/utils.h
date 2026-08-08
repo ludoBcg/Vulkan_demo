@@ -20,6 +20,7 @@
 #include <set>
 #include <optional>
 #include <array>
+#include <random>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES // handles data alignment automatically
@@ -47,7 +48,7 @@ namespace VulkanDemo
 
     const std::string MODEL_PATH = "../models/viking_room/viking_room.obj";
     const std::string TEXTURE_PATH = "../models/viking_room/viking_room.png";
-
+ 
 
     /*
      * Structure to store particles as vertices
@@ -116,6 +117,28 @@ namespace VulkanDemo
 #else
     const bool enableValidationLayers = true;
 #endif
+
+
+    /*
+     * Initializes particles
+     */
+    inline void initParticles(std::vector<Particle>& _particles, float _depthOrigin)
+    {
+        std::default_random_engine rndEngine((unsigned)time(nullptr));
+        std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+        float depthOffest = 1.0f - _depthOrigin;
+
+        for (auto& particle : _particles)
+        {
+            float random_sign = rndDist(rndEngine) * 2.0f - 1.0f;
+            float depth = _depthOrigin + (rndDist(rndEngine)) * depthOffest * random_sign;
+            float randX = rndDist(rndEngine) * 2.0f - 1.0f;
+            float randY = rndDist(rndEngine) * 2.0f - 1.0f;
+            particle.position = glm::vec3(randX, randY, depth);
+            particle.velocity = glm::vec3(0.0f, sqrt(rndDist(rndEngine)), 0.0f) * 0.00009f;
+            particle.color = glm::vec4(1.0-depth, 1.0-depth, 1.0-depth, 1.0f);
+        }
+    }
 
 
     /*
