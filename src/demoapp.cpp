@@ -212,6 +212,14 @@ void DemoApp::pickPhysicalDevice()
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(m_contextPtr->getInstance(), &deviceCount, devices.data());
 
+    std::string devicesNames = "";
+    for (auto it = devices.begin(); it != devices.end(); ++it)
+    {
+        VkPhysicalDeviceProperties physicalDeviceProperties;
+        vkGetPhysicalDeviceProperties(*it, &physicalDeviceProperties);
+        devicesNames += "\n       " + std::string(physicalDeviceProperties.deviceName);
+    }
+    infoLog() << "List of found devices: " + devicesNames;
 
     // check if any of the physical devices meet the requirements defined in isDeviceSuitable()
     for (const auto& device : devices)
@@ -227,6 +235,10 @@ void DemoApp::pickPhysicalDevice()
     if (m_contextPtr->getPhysicalDevice() == VK_NULL_HANDLE) {
         throw std::runtime_error("failed to find a suitable GPU!");
     }
+
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(m_contextPtr->getPhysicalDevice(), &physicalDeviceProperties);
+    infoLog() << "Selected device: " + std::string(physicalDeviceProperties.deviceName);
 
     infoLog() << "pickPhysicalDevice(): OK ";
 }

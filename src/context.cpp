@@ -31,7 +31,7 @@ void Context::createInstance()
     // Fill-in the structure specifying application information (optional)
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
+    appInfo.pApplicationName = "Vulkan_demo";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -43,9 +43,9 @@ void Context::createInstance()
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo; // ref to application info (defined above)
     // Specify the desired global extensions to interface with the window system
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount); //use the GLFW built-in function to know which extension is needed
+    //uint32_t glfwExtensionCount = 0;
+    //const char** glfwExtensions;
+    //glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount); //use the GLFW built-in function to know which extension is needed
     //createInfo.enabledExtensionCount = glfwExtensionCount;
     //createInfo.ppEnabledExtensionNames = glfwExtensions;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());

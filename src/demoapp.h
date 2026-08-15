@@ -31,7 +31,7 @@ namespace VulkanDemo
 class DemoApp
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
-    const uint32_t PARTICLE_COUNT  = 256 /*8192*/;
+    const uint32_t PARTICLE_COUNT  = 512;
     const bool DRAW_PARTICLES = true;
     const bool DRAW_MESH = true;
 

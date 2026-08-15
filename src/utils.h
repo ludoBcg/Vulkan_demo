@@ -315,7 +315,8 @@ namespace VulkanDemo
         vkGetPhysicalDeviceQueueFamilyProperties(_device, &queueFamilyCount, queueFamilies.data());
 
 
-        // We need to find at least one queue family that supports VK_QUEUE_GRAPHICS_BIT
+        // We need to find at least one queue family that supports
+        // graphics queue (VK_QUEUE_GRAPHICS_BIT) and compute queue (VK_QUEUE_COMPUTE_BIT)
         int i = 0;
         for (const auto& queueFamily : queueFamilies)
         {

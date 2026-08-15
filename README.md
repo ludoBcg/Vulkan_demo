@@ -39,6 +39,8 @@ pause
 
 https://renderdoc.org/vulkan-in-30-minutes.html
 
+https://www.howtovulkan.com
+
 
 Data:
 

@@ -37,7 +37,7 @@ layout(location = 0) out vec3 fragColor;
 void main() 
 {
     // size of rasterized points in pixels
-	gl_PointSize = 15.0;
+	gl_PointSize = 10.0;
 
     gl_Position = vec4(inPosition.xyz, 1.0);
     gl_Position = vec4(inPosition, 1.0);
