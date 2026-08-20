@@ -22,13 +22,9 @@ void main()
     // vec2 in range [0, 1]
     vec2 coord = gl_PointCoord - vec2(0.5);
 
-    outColor.rgb = fragColor;
-
-    outColor.rgb = vec3(1.0 - fragColor.z) * 200.0;
-
     // discard out-of-radius fragments to paint circular points instead of squares
     if( 0.5 - length(coord) < 0.0)
         discard;
 
-    outColor.a = 1.0;
+    outColor = vec4(fragColor.rgb, 1.0);
 }

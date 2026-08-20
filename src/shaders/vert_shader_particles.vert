@@ -40,7 +40,7 @@ void main()
 	gl_PointSize = 10.0;
 
     gl_Position = vec4(inPosition.xyz, 1.0);
-    gl_Position = vec4(inPosition, 1.0);
 
-    fragColor = gl_Position.xyz / gl_Position.w /* inColor.rgb*/;
+    // use depth as color
+    fragColor = vec3(1.0 - gl_Position.z) * 300.0;
 }

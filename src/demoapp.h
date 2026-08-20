@@ -52,7 +52,7 @@ private:
     std::shared_ptr<Context> m_contextPtr = nullptr; 
 
     GLFWwindow* m_window;
-    VkSwapchainKHR m_swapChain;                         // swap chain
+    VkSwapchainKHR m_swapChain;                         // swap chain: series of images enqueued to the presentation engine
     std::vector<VkImage> m_swapChainImages;             // handles of the VkImage
     VkFormat m_swapChainImageFormat;                    // format chosen for the swap chain images
     VkExtent2D m_swapChainExtent;                       // extent chosen for the swap chain images

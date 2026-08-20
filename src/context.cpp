@@ -126,8 +126,9 @@ void Context::createLogicalDevice()
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsAndComputeFamily.value(), indices.presentFamily.value() };
 
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies) {
+    const float queuePriority = 1.0f;
+    for (uint32_t queueFamily : uniqueQueueFamilies)
+    {
         VkDeviceQueueCreateInfo queueCreateInfo{};
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -136,21 +137,25 @@ void Context::createLogicalDevice()
         queueCreateInfos.push_back(queueCreateInfo);
     }
  
+    // Envable Vk10 core features
+    // use VkPhysicalDeviceVulkan12Features and/or VkPhysicalDeviceVulkan13Features
+    // for Vulkan 1.2 and/or 1.3 features
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.samplerAnisotropy = VK_TRUE;
     //deviceFeatures.sampleRateShading = VK_TRUE; // enable sample shading feature for the device
 
+    
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
+    // queue families that we want to use
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
+    // core features that we want to use
     createInfo.pEnabledFeatures = &deviceFeatures;
-
+    // extensions that we want to use
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
+    // enable layers
     if (enableValidationLayers) 
     {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -161,6 +166,7 @@ void Context::createLogicalDevice()
         createInfo.enabledLayerCount = 0;
     }
 
+    // finally create the device
     if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device!");
     }
