@@ -88,13 +88,16 @@ namespace VulkanDemo
     /*
      * Structure to store data associated with vertex processing (i.e., MVP matrices and other uniforms)
      */
-    struct UniformBufferObject 
+    struct UniformBufferObject_graphics 
     {
         alignas(16) glm::mat4 model;
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 proj;
         alignas(16) glm::vec3 lightPos;
+    };
 
+    struct UniformBufferObject_compute
+    {
         float deltaTime = 1.0f;
         float windX = 0.0f;
     };

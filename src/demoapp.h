@@ -90,16 +90,19 @@ private:
     // Mesh contains vertex buffer and index buffer
     Mesh m_mesh;
 
-    UniformBufferObject m_ubo{};
-    //ComputeUniformBufferObject m_ubo_particles{};
+    UniformBufferObject_graphics m_ubo_graphics{};
+    UniformBufferObject_compute m_ubo_compute{};
     glm::mat4 m_initModel;
     GLtools::Camera m_camera;
     GLtools::Trackball m_trackball;
 
     // uniforms storage
-    std::vector<VkBuffer> m_uniformBuffers;
-    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
-    std::vector<void*> m_uniformBuffersMapped;
+    std::vector<VkBuffer> m_uniformBuffers_graphics;
+    std::vector<VkDeviceMemory> m_uniformBuffersMemory_graphics;
+    std::vector<void*> m_uniformBuffersMapped_graphics;
+    std::vector<VkBuffer> m_uniformBuffers_compute;
+    std::vector<VkDeviceMemory> m_uniformBuffersMemory_compute;
+    std::vector<void*> m_uniformBuffersMapped_compute;
     std::vector<VkBuffer> m_computeShaderStorageBuffers;
     std::vector<VkDeviceMemory> m_computeShaderStorageBuffersMemory;
 

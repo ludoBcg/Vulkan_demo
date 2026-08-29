@@ -108,13 +108,13 @@ void DemoApp::initUBO()
     m_initModel = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f))
                 * glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     // build MVP matrices
-    m_ubo.model = m_initModel;
-    m_ubo.view = m_camera.getViewMatrix();
-    m_ubo.proj = m_camera.getProjectionMatrix();
-    m_ubo.proj[1][1] *= -1;
-    m_ubo.lightPos = glm::vec3(2.0f, 2.0f, 0.0f); // light source position in view space
+    m_ubo_graphics.model = m_initModel;
+    m_ubo_graphics.view = m_camera.getViewMatrix();
+    m_ubo_graphics.proj = m_camera.getProjectionMatrix();
+    m_ubo_graphics.proj[1][1] *= -1;
+    m_ubo_graphics.lightPos = glm::vec3(2.0f, 2.0f, 0.0f); // light source position in view space
 
-    m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
+    m_ubo_compute.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
 }
 
 
@@ -147,8 +147,11 @@ void DemoApp::cleanup()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
     {
-        vkDestroyBuffer(m_contextPtr->getDevice(), m_uniformBuffers.at(i), nullptr);
-        vkFreeMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory.at(i), nullptr);
+        vkDestroyBuffer(m_contextPtr->getDevice(), m_uniformBuffers_graphics.at(i), nullptr);
+        vkFreeMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory_graphics.at(i), nullptr);
+
+        vkDestroyBuffer(m_contextPtr->getDevice(), m_uniformBuffers_compute.at(i), nullptr);
+        vkFreeMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory_compute.at(i), nullptr);
 
         vkDestroyBuffer(m_contextPtr->getDevice(), m_computeShaderStorageBuffers.at(i), nullptr);
         vkFreeMemory(m_contextPtr->getDevice(), m_computeShaderStorageBuffersMemory.at(i), nullptr);
@@ -649,18 +652,33 @@ void DemoApp::createColorResources()
  */
 void DemoApp::createUniformBuffers() 
 {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject_graphics);
 
-    m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    m_uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-    m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniformBuffers_graphics.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniformBuffersMemory_graphics.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniformBuffersMapped_graphics.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
     {
-        createBuffer(m_contextPtr->getPhysicalDevice(), m_contextPtr->getDevice(), bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     m_uniformBuffers.at(i), m_uniformBuffersMemory.at(i));
+        createBuffer(m_contextPtr->getPhysicalDevice(), m_contextPtr->getDevice(), bufferSize,
+                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     m_uniformBuffers_graphics.at(i), m_uniformBuffersMemory_graphics.at(i));
 
-        vkMapMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory.at(i), 0, bufferSize, 0, &m_uniformBuffersMapped.at(i));
+        vkMapMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory_graphics.at(i), 0, bufferSize, 0, &m_uniformBuffersMapped_graphics.at(i));
+    }
+
+    bufferSize = sizeof(UniformBufferObject_compute);
+    m_uniformBuffers_compute.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniformBuffersMemory_compute.resize(MAX_FRAMES_IN_FLIGHT);
+    m_uniformBuffersMapped_compute.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) 
+    {
+        createBuffer(m_contextPtr->getPhysicalDevice(), m_contextPtr->getDevice(), bufferSize,
+                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     m_uniformBuffers_compute.at(i), m_uniformBuffersMemory_compute.at(i));
+
+        vkMapMemory(m_contextPtr->getDevice(), m_uniformBuffersMemory_compute.at(i), 0, bufferSize, 0, &m_uniformBuffersMapped_compute.at(i));
     }
 }
 
@@ -688,13 +706,13 @@ void DemoApp::createDescriptorPools()
 void DemoApp::createDescriptorSets()
 {
     // 1. Descriptor sets for graphics pipeline
-    m_graphicsPipeline_mesh.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers, m_textureImage);
-    m_graphicsPipeline_particles.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers, m_textureImage);
+    m_graphicsPipeline_mesh.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers_graphics, m_textureImage);
+    m_graphicsPipeline_particles.createGraphicsDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, m_uniformBuffers_graphics, m_textureImage);
 
 
     // 2. Descriptor sets for compute pipeline
     m_computePipeline.createComputeDescriptorSet(m_contextPtr->getDevice(), MAX_FRAMES_IN_FLIGHT, 
-                                                 m_uniformBuffers, m_computeShaderStorageBuffers,
+                                                 m_uniformBuffers_compute, m_computeShaderStorageBuffers,
                                                  PARTICLE_COUNT);
 }
 
@@ -1057,15 +1075,17 @@ void DemoApp::updateUniformBuffer(uint32_t _currentImage)
     //float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     //m_initModel = glm::rotate(m_initModel, glm::radians(0.05f), glm::vec3(0.0f, 0.0f, 1.0f));
-    m_ubo.model = m_trackball.getRotationMatrix() 
-                * m_initModel;
+    m_ubo_graphics.model = m_trackball.getRotationMatrix() 
+                       * m_initModel;
 
-    m_ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;  
+    memcpy(m_uniformBuffersMapped_graphics.at(_currentImage), &m_ubo_graphics, sizeof(m_ubo_graphics));
+
+    m_ubo_compute.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;  
 
     float random_offset = rndDist(rndEngine) * 0.5f;
-    m_ubo.windX = static_cast<float>(cos( m_lastTime + random_offset )) * 0.00002f;
+    m_ubo_compute.windX = static_cast<float>(cos( m_lastTime + random_offset )) * 0.00002f;
 
-    memcpy(m_uniformBuffersMapped.at(_currentImage), &m_ubo, sizeof(m_ubo));
+    memcpy(m_uniformBuffersMapped_compute.at(_currentImage), &m_ubo_compute, sizeof(m_ubo_compute));
 }
 
 

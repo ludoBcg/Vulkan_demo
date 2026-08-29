@@ -13,17 +13,6 @@
 #version 450
 
 
-// UNIFORMS INPUT  (set = 0 is optionnal, only used in case of multiple descriptor sets)
-layout(set = 0, binding = 0) uniform UniformBufferObject
-{
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-    vec3 lightPos;
-    float deltaTime;
-    float windX;
-} ubo;
-
 
 // ATTRIBUTE INPUT (i.e., vertex buffer data)
 layout(location = 0) in vec3 inPosition;
