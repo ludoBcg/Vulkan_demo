@@ -26,6 +26,14 @@ set(HEADERS
 	src/demoapp.h
     )
 
+set(SHADERS
+	src/shaders/comp_shader.comp
+	src/shaders/vert_shader.vert
+	src/shaders/frag_shader.frag
+	src/shaders/vert_shader_particles.vert
+	src/shaders/frag_shader_particles.frag
+    )
+
 	
 # Add include directories
 include_directories(SYSTEM "${CMAKE_CURRENT_SOURCE_DIR}/src" )
@@ -68,6 +76,9 @@ include_directories(SYSTEM "${LIBS_DIR}/third_party/tinyobjloader")
 
 # Add executable for project
 add_executable(${PROJECT_NAME} ${SRCS} ${HEADERS})
+
+source_group("Shader Files" FILES ${SHADERS})
+target_sources(${PROJECT_NAME} PRIVATE ${SHADERS})
 
 target_link_libraries(${PROJECT_NAME} ${GLFW_LIBS} ${VULKAN_LIBS})
 
