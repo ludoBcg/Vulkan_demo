@@ -25,6 +25,7 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES // handles data alignment automatically
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE // define a depth range of [0;1] instead of [-1;1] for the perspective projection matrix
+#define GLM_FORCE_INTRINSICS // fix glm 1.0.3 incompatibility with VS2022 (SIMD alignments)
 #include <glm/glm.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>

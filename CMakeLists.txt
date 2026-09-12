@@ -61,7 +61,7 @@ SET(GLFW_LIBS glfw3.lib)
 
 
 # GLM (Header only!)
-include_directories(SYSTEM "${LIBS_DIR}/third_party/glm-1.0.1")
+include_directories(SYSTEM "${LIBS_DIR}/third_party/glm-1.0.3")
 
 
 # STB
